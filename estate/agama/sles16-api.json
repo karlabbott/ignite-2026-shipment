@@ -52,11 +52,10 @@
     "fullName": "Estate admin",
     "userName": "estate",
     "password": "!!PASSWORD_HASH!!",
-    "hashedPassword": true,
-    "sshPublicKey": "!!SSH_PUBKEY!!"
+    "hashedPassword": true
   },
   "software": {
-    "patterns": ["base", "minimal_base", "yast2_basis"],
+    "patterns": ["base", "minimal_base"],
     "packages": ["openssh", "chrony", "curl", "tar", "python313", "python313-pip", "python313-devel", "gcc", "gawk"]
   },
   "scripts": {
@@ -64,7 +63,7 @@
       {
         "name": "estate-baseline",
         "chroot": true,
-        "content": "#!/bin/bash\nset -x\nsystemctl enable sshd chronyd firewalld\nfirewall-offline-cmd --set-default-zone=public || true\nfirewall-offline-cmd --zone=public --add-service=ssh || true\nfirewall-offline-cmd --zone=public --add-port=8080/tcp || true\ncat >> /etc/hosts <<'HOSTS'\n192.168.90.11 rhel-db.99b.local rhel-db\n192.168.90.12 sles-api.99b.local sles-api\n192.168.90.13 ubuntu-web.99b.local ubuntu-web\n192.168.90.14 rocky-worker.99b.local rocky-worker\nHOSTS\nalternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 100 || true\nsystemctl mask serial-getty@ttyS0.service || true\necho 'estate ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/estate\nchmod 0440 /etc/sudoers.d/estate\n"
+        "content": "#!/bin/bash\nset -x\nsystemctl enable sshd chronyd firewalld\nfirewall-offline-cmd --set-default-zone=public || true\nfirewall-offline-cmd --zone=public --add-service=ssh || true\nfirewall-offline-cmd --zone=public --add-port=8080/tcp || true\ncat >> /etc/hosts <<'HOSTS'\n192.168.90.11 rhel-db.99b.local rhel-db\n192.168.90.12 sles-api.99b.local sles-api\n192.168.90.13 ubuntu-web.99b.local ubuntu-web\n192.168.90.14 rocky-worker.99b.local rocky-worker\nHOSTS\nalternatives --install /usr/bin/python3 python3 /usr/bin/python3.13 100 || true\nsystemctl mask serial-getty@ttyS0.service || true\necho 'estate ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/estate\nchmod 0440 /etc/sudoers.d/estate\ninstall -d -m 0700 -o estate -g users /home/estate/.ssh\ncat > /home/estate/.ssh/authorized_keys <<'KEY'\n!!SSH_PUBKEY!!\nKEY\nchown estate:users /home/estate/.ssh/authorized_keys\nchmod 0600 /home/estate/.ssh/authorized_keys\n"
       }
     ]
   }

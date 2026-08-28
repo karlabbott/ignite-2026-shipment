@@ -13,6 +13,7 @@ Run:  .venv\\Scripts\\python.exe tools\\validate-answer-files.py
 """
 
 import json
+import re
 import sys
 from pathlib import Path
 
@@ -31,6 +32,8 @@ PLACEHOLDERS = {
     "!!CIQ_REG_CODE!!": "DUMMY-CIQ-CODE",
     "!!RHSM_ORGANIZATION!!": "1234567",
     "!!RHSM_ACTIVATION_KEY!!": "dummy-activation-key",
+    "!!DNS_SERVERS!!": "1.1.1.1,8.8.8.8",
+    "!!DNS_SERVERS_JSON!!": '"1.1.1.1", "8.8.8.8"',
 }
 
 failures = []
@@ -49,7 +52,7 @@ def render(path):
         index = 0
         while index < len(lines):
             line = lines[index]
-            if line.startswith(("network ", "user ")):
+            if line.startswith(("network ", "user ", "bootloader ")):
                 directive = line.rstrip().rstrip("\\").rstrip()
                 while index + 1 < len(lines) and lines[index + 1].lstrip().startswith("--"):
                     index += 1
@@ -135,6 +138,14 @@ def check_kickstart(path):
     if not any(ln.strip().startswith(("rootpw", "user ")) for ln in lines):
         problems.append("no rootpw or user directive; install will prompt and hang")
 
+    if re.search(r"--\*+", text):
+        problems.append("contains a redacted option instead of a real Kickstart directive")
+
+    if any(ln.strip() == "rootpw --lock" for ln in lines):
+        user_lines = [ln for ln in lines if ln.startswith("user ")]
+        if user_lines and not any("--password=" in ln for ln in user_lines):
+            problems.append("root is locked but the user directive has no console password")
+
     # Anaconda accepts a syntactically valid `network --bootproto=static` line
     # without --ip, then crashes during NetworkManager setup with
     # "Invalid IPv4 address ''". Treat this as a template error, not a guest
@@ -151,20 +162,13 @@ def check_kickstart(path):
     report(path, not problems, "; ".join(problems) or detail)
 
 
-print("\nKickstart (RHEL / Rocky)")
+print("\nKickstart (RHEL / RLC+)")
 for ks in sorted((ESTATE / "kickstart").glob("*.ks")):
     check_kickstart(ks)
 
 print("\nAgama (SLES 16)")
 for js in sorted((ESTATE / "agama").glob("*.json")):
     check_json(js, expect_keys=("product", "user"))
-
-print("\ncloud-init NoCloud (RLC+ worker)")
-ci = ESTATE / "cloudinit"
-if (ci / "rlc-worker-user-data").exists():
-    check_yaml(ci / "rlc-worker-user-data", expect_keys=("users", "runcmd"), cloud_config=True)
-if (ci / "rlc-worker-network-config").exists():
-    check_yaml(ci / "rlc-worker-network-config", expect_keys=("version", "ethernets"))
 
 print("\nsubiquity autoinstall (Ubuntu 26.04)")
 ai = ESTATE / "autoinstall"

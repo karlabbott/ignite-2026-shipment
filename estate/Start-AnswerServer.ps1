@@ -42,7 +42,7 @@ $listener.Prefixes.Add($prefix)
 try {
     $listener.Start()
 } catch {
-    throw "Could not bind $prefix. Is the ShipmentLab switch up with $Address assigned?`n$($_.Exception.Message)"
+    throw "Could not bind $prefix. Is the ShipmentInternal switch up with $Address assigned?`n$($_.Exception.Message)"
 }
 
 Write-Host "Serving $Root at $prefix" -ForegroundColor Cyan

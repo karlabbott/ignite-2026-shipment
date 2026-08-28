@@ -9,7 +9,7 @@ terminal copy/paste is needed.
 #>
 [CmdletBinding()]
 param(
-    [string] $InstallerIso = "$env:USERPROFILE\isos\rhel-10.2-x86_64-boot.iso",
+    [string] $InstallerIso = 'C:\Lab\ISOs\rhel-10.2-x86_64-boot.iso',
     [string] $AnswerIso = (Join-Path $PSScriptRoot 'out\rhel10-db-oemdrv.iso')
 )
 

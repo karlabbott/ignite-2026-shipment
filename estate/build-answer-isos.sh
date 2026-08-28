@@ -8,7 +8,7 @@
 # drive to each VM:
 #
 #   rhel10-db-oemdrv.iso        label OEMDRV   -> Anaconda auto-detects ks.cfg
-#   rocky10-worker-cidata.iso   label CIDATA   -> cloud-init seeds the RLC+ image
+#   rlc10-worker-oemdrv.iso     label OEMDRV   -> Anaconda auto-detects ks.cfg
 #   ubuntu26-web-cidata.iso     label CIDATA   -> subiquity NoCloud datasource
 #   sles16-api-profile.iso      label AGAMA    -> fallback if HTTP is unavailable
 #
@@ -148,7 +148,7 @@ if dst.endswith("ks.cfg"):
     index = 0
     while index < len(lines):
         line = lines[index]
-        if line.startswith(("network ", "user ")):
+        if line.startswith(("network ", "user ", "bootloader ")):
             directive = line.rstrip().rstrip("\\").rstrip()
             while (index + 1 < len(lines)
                    and lines[index + 1].lstrip().startswith("--")):
@@ -198,24 +198,7 @@ build_oemdrv() {
 }
 
 build_oemdrv rhel10-db-oemdrv      "${HERE}/kickstart/rhel10-db.ks"
-
-# ------------------------------------------- cloud-init NoCloud: rocky-worker --
-# RLC+ is published as a qcow2 cloud image, not an installer ISO, so the worker
-# is not kickstarted at all -- it boots the converted image and configures
-# itself from this seed. cloud-init requires the volume label to be exactly
-# CIDATA and the files to be named user-data / meta-data.
-log "building rocky10-worker-cidata (CIDATA)"
-RLCSEED="${WORK}/rlcseed"
-mkdir -p "${RLCSEED}"
-render "${HERE}/cloudinit/rlc-worker-user-data" "${RLCSEED}/user-data"
-cp "${HERE}/cloudinit/rlc-worker-network-config" "${RLCSEED}/network-config"
-cat > "${RLCSEED}/meta-data" <<'EOF'
-instance-id: rocky-worker-01
-local-hostname: rocky-worker
-EOF
-xorriso -as mkisofs -quiet \
-  -volid CIDATA -rational-rock -joliet \
-  -output "${OUT}/rocky10-worker-cidata.iso" "${RLCSEED}"
+build_oemdrv rlc10-worker-oemdrv   "${HERE}/kickstart/rlc10-worker.ks"
 
 # ------------------------------------------------------ subiquity: CIDATA ----
 log "building ubuntu26-web-cidata (CIDATA)"
