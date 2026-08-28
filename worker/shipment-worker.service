@@ -1,0 +1,30 @@
+[Unit]
+Description=NinetyNine Freight worker (Rocky tier)
+Documentation=https://github.com/karlabbott/ignite-2026-shipment
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=shipment
+Group=shipment
+WorkingDirectory=/opt/shipment
+Environment=PYTHONPATH=/opt/shipment
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/shipment/shipment.env
+ExecStart=/opt/shipment/venv/bin/python -m worker.worker.main
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

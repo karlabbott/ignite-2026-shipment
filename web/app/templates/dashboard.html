@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}{{ brand }} — Operations Board{% endblock %}
+{% block body_class %}dashboard{% endblock %}
+
+{% block topbar_extra %}
+  <div class="qr-hint">
+    <span>Create a shipment:</span>
+    <code>{{ track_url }}</code>
+  </div>
+{% endblock %}
+
+{% block content %}
+  <!-- The health strip is the most important element on this page. It is the
+       thing that visibly changes from Hyper-V to Azure during the migration. -->
+  <section class="strip" aria-label="Estate health">
+    <h2 class="strip-title">Estate</h2>
+    <div id="estate" class="tiles"></div>
+  </section>
+
+  <section class="counters" aria-label="Shipment counters">
+    <div class="counter"><span id="stat-total" class="value">–</span><span class="label">Shipments</span></div>
+    <div class="counter"><span id="stat-inflight" class="value">–</span><span class="label">In flight</span></div>
+    <div class="counter"><span id="stat-delivered" class="value">–</span><span class="label">Delivered</span></div>
+    <div class="counter"><span id="stat-queue" class="value">–</span><span class="label">Queue depth</span></div>
+    <div class="counter"><span id="stat-scans" class="value">–</span><span class="label">Scans / 5 min</span></div>
+  </section>
+
+  <section class="board" aria-label="Shipment board">
+    <table>
+      <thead>
+        <tr>
+          <th>Tracking</th>
+          <th>Carrier</th>
+          <th>Route</th>
+          <th>Status</th>
+          <th class="progress-col">Progress</th>
+          <th>Last seen</th>
+          <th>Scanned by</th>
+          <th>Created by</th>
+        </tr>
+      </thead>
+      <tbody id="board"></tbody>
+    </table>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/dashboard.js"></script>
+{% endblock %}

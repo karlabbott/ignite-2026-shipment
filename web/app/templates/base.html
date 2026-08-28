@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}{{ brand }}{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#128230;</text></svg>">
+</head>
+<body class="{% block body_class %}{% endblock %}">
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">99</span>
+      <span class="name">{{ brand }}</span>
+    </div>
+    {% block topbar_extra %}{% endblock %}
+  </header>
+
+  <div id="banner" class="banner hidden" role="status" aria-live="polite"></div>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <script>window.REFRESH_MS = {{ refresh_ms }};</script>
+  <script src="/static/common.js"></script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

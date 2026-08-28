@@ -1,0 +1,9 @@
+[Unit]
+Description=Publish the NinetyNine Freight database tier heartbeat
+After=mssql-server.service
+Requires=mssql-server.service
+
+[Service]
+Type=oneshot
+EnvironmentFile=/etc/shipment/db-heartbeat.env
+ExecStart=/usr/local/sbin/shipment-db-heartbeat

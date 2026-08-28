@@ -1,0 +1,161 @@
+#cloud-config
+# Autoinstall — ubuntu-web (Ubuntu Server 26.04 LTS "Resolute Raccoon")
+#
+# Web tier for NinetyNine Freight: nginx on :80 in front of uvicorn on :8000.
+# Serves dash.99b.org and track.99b.org.
+#
+# Delivery: build an ISO labelled CIDATA containing this file as `user-data`
+# alongside an empty `meta-data`, and attach it as a second DVD drive.
+# Subiquity finds the NoCloud datasource automatically. Because this is an
+# interactive live-server ISO, still add ONE boot argument to skip the
+# "are you sure?" prompt:
+#
+#     autoinstall
+#
+# See estate/README.md.
+#
+# Divergences from a cloud-ready build are marked DIVERGENCE.
+
+autoinstall:
+  version: 1
+
+  # Fail rather than stop and ask a human. A prompt on stage is a dead demo.
+  interactive-sections: []
+
+  locale: en_US.UTF-8
+  keyboard:
+    layout: us
+  timezone: America/Los_Angeles
+
+  # DIVERGENCE 1: static addressing, no DHCP.
+  # Ubuntu keeps cloud-init installed (it is how the installer works), but it is
+  # explicitly disabled at the end of this file -- see DIVERGENCE 4. The netplan
+  # written here is a plain static config that will be wrong in Azure.
+  network:
+    version: 2
+    ethernets:
+      eth0:
+        dhcp4: false
+        dhcp6: false
+        addresses:
+          - 192.168.90.13/24
+        routes:
+          - to: default
+            via: 192.168.90.1
+        nameservers:
+          addresses: [!!DNS_SERVERS!!]
+        match:
+          name: "e*"
+        set-name: eth0
+
+  identity:
+    hostname: ubuntu-web
+    username: estate
+    realname: Estate admin
+    password: "!!PASSWORD_HASH!!"
+
+  ssh:
+    install-server: true
+    allow-pw: false
+    authorized-keys:
+      - "!!SSH_PUBKEY!!"
+
+  # DIVERGENCE 2: LVM with a hand-sized /var/log.
+  # A perfectly reasonable on-prem layout that Azure Migrate carries verbatim.
+  storage:
+    config:
+      - {type: disk, id: disk0, path: /dev/sda, ptable: gpt, wipe: superblock-recursive, preserve: false, grub_device: false}
+      - {type: partition, id: p-esp, device: disk0, size: 600M, flag: boot, grub_device: true, preserve: false}
+      - {type: format, id: f-esp, volume: p-esp, fstype: fat32, preserve: false}
+      - {type: partition, id: p-boot, device: disk0, size: 1G, preserve: false}
+      - {type: format, id: f-boot, volume: p-boot, fstype: ext4, preserve: false}
+      - {type: partition, id: p-pv, device: disk0, size: -1, preserve: false}
+      - {type: lvm_volgroup, id: vg-web, name: vg_web, devices: [p-pv], preserve: false}
+      - {type: lvm_partition, id: lv-root, volgroup: vg-web, name: lv_root, size: 20G, preserve: false}
+      - {type: format, id: f-root, volume: lv-root, fstype: ext4, preserve: false}
+      - {type: lvm_partition, id: lv-swap, volgroup: vg-web, name: lv_swap, size: 2G, preserve: false}
+      - {type: format, id: f-swap, volume: lv-swap, fstype: swap, preserve: false}
+      - {type: lvm_partition, id: lv-log, volgroup: vg-web, name: lv_log, size: -1, preserve: false}
+      - {type: format, id: f-log, volume: lv-log, fstype: ext4, preserve: false}
+      - {type: mount, id: m-root, device: f-root, path: /}
+      - {type: mount, id: m-boot, device: f-boot, path: /boot}
+      - {type: mount, id: m-esp, device: f-esp, path: /boot/efi}
+      - {type: mount, id: m-log, device: f-log, path: /var/log}
+      - {type: mount, id: m-swap, device: f-swap, path: none}
+
+  packages:
+    - openssh-server
+    - chrony
+    - curl
+    - nginx
+    - python3
+    - python3-venv
+    - python3-dev
+    - build-essential
+
+  # DIVERGENCE 3: no walinuxagent package.
+  # Ubuntu's archive has it and it would install cleanly. It is left out so this
+  # VM arrives in Azure unmanageable, exactly like a real lift-and-shift of a
+  # machine that was never intended for the cloud.
+
+  late-commands:
+    # DIVERGENCE 4: neuter cloud-init after the install completes.
+    # cloud-init is what ran this autoinstall, so it cannot simply be removed --
+    # but a long-lived on-prem VM does not have an active cloud datasource. This
+    # makes the machine behave like one, and is a large part of why it will not
+    # pick up Azure networking or provisioning after migration.
+    - curtin in-target -- systemctl disable cloud-init cloud-init-local cloud-config cloud-final
+    # Quoted because the value contains ": " and "[", which YAML would otherwise
+    # try to parse as a nested mapping/sequence rather than a shell command.
+    - "echo 'datasource_list: [ None ]' > /target/etc/cloud/cloud.cfg.d/99-datasource.cfg"
+    - touch /target/etc/cloud/cloud-init.disabled
+
+    # DIVERGENCE 5: rewrite fstab from UUID to device names.
+    # sda is always sda on Hyper-V. In Azure the controller changes and this
+    # sends the boot into an emergency shell with no console to read it on.
+    - |
+      curtin in-target -- bash -c '
+        cp /etc/fstab /root/fstab.uuid-original
+        while read -r spec mount rest; do
+          case "$spec" in
+            UUID=*)
+              dev=$(blkid -U "${spec#UUID=}" 2>/dev/null || true)
+              if [ -n "$dev" ]; then printf "%s\t%s\t%s\n" "$dev" "$mount" "$rest";
+              else printf "%s\t%s\t%s\n" "$spec" "$mount" "$rest"; fi ;;
+            *) printf "%s\t%s\t%s\n" "$spec" "$mount" "$rest" ;;
+          esac
+        done < /root/fstab.uuid-original > /etc/fstab
+        cp /etc/fstab /root/fstab.as-built'
+
+    # DIVERGENCE 6: no serial console on the kernel command line.
+    - |
+      curtin in-target -- bash -c '
+        sed -i "s/console=ttyS0[^ \"]*//g" /etc/default/grub
+        sed -i "s/GRUB_TIMEOUT=.*/GRUB_TIMEOUT=5/" /etc/default/grub
+        update-grub
+        systemctl mask serial-getty@ttyS0.service || true'
+
+    - curtin in-target -- bash -c 'echo "estate ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/estate; chmod 0440 /etc/sudoers.d/estate'
+
+    # DIVERGENCE 7: hosts file pinned to the lab subnet.
+    - |
+      curtin in-target -- bash -c 'cat >> /etc/hosts <<HOSTS
+      192.168.90.11   rhel-db.99b.local       rhel-db
+      192.168.90.12   sles-api.99b.local      sles-api
+      192.168.90.13   ubuntu-web.99b.local    ubuntu-web
+      192.168.90.14   rocky-worker.99b.local  rocky-worker
+      HOSTS'
+
+    - |
+      curtin in-target -- bash -c '{
+        echo "built:    $(date -Is)"
+        echo "distro:   $(. /etc/os-release && echo "$PRETTY_NAME")"
+        echo "kernel:   $(uname -r)"
+        echo "tier:     web"
+        echo "walinuxagent: absent (deliberate)"
+        echo "cloud-init:   installed but disabled (deliberate)"
+        echo "fstab:        device names (deliberate)"
+        echo "serial console: disabled (deliberate)"
+      } > /etc/estate-baseline'
+
+  shutdown: reboot

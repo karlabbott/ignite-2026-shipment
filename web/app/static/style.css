@@ -1,0 +1,241 @@
+/* NinetyNine Freight — shared styling.
+   High contrast and large type: this is read from the back of a breakout room. */
+
+:root {
+  --bg: #0d1117;
+  --panel: #161b22;
+  --panel-2: #1c2230;
+  --line: #2b3444;
+  --text: #e6edf3;
+  --muted: #8b97a8;
+  --accent: #2f81f7;
+  --onprem: #d29922;
+  --azure: #2f81f7;
+  --good: #3fb950;
+  --bad: #f85149;
+  --warn: #d29922;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.5 "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+.mono { font-family: "Cascadia Mono", ui-monospace, "SF Mono", Menlo, monospace; }
+.hidden { display: none !important; }
+
+/* ------------------------------------------------------------------ topbar */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 14px 28px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.brand { display: flex; align-items: center; gap: 12px; }
+
+.brand .mark {
+  display: inline-grid;
+  place-items: center;
+  width: 40px; height: 40px;
+  border-radius: var(--radius);
+  background: var(--accent);
+  color: #fff;
+  font-weight: 800;
+  font-size: 19px;
+}
+
+.brand .name { font-size: 22px; font-weight: 650; letter-spacing: 0.2px; }
+
+.qr-hint { color: var(--muted); font-size: 15px; }
+.qr-hint code { color: var(--text); font-size: 17px; }
+
+/* ------------------------------------------------------------------ banner */
+.banner {
+  padding: 12px 28px;
+  background: rgba(248, 81, 73, 0.14);
+  border-bottom: 1px solid var(--bad);
+  color: #ffb4ae;
+  font-size: 16px;
+}
+.banner.warn {
+  background: rgba(210, 153, 34, 0.14);
+  border-bottom-color: var(--warn);
+  color: #ffd98a;
+}
+
+main { padding: 22px 28px 48px; }
+
+/* ------------------------------------------------------------ health strip */
+.strip-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--muted);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.tile {
+  position: relative;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-left: 5px solid var(--muted);
+  border-radius: var(--radius);
+  transition: border-color 300ms ease, background 300ms ease;
+}
+
+.tile.platform-hyper-v { border-left-color: var(--onprem); }
+.tile.platform-azure   { border-left-color: var(--azure); }
+.tile.unhealthy        { border-left-color: var(--bad); opacity: 0.55; }
+
+/* Fires when a tile's platform label changes, so the Hyper-V to Azure flip is
+   impossible to miss from the back of the room. */
+@keyframes tile-flip {
+  0%   { background: rgba(47, 129, 247, 0.45); transform: scale(1.03); }
+  100% { background: var(--panel); transform: scale(1); }
+}
+.tile.flipped { animation: tile-flip 1400ms ease-out; }
+
+.tile .tier {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  color: var(--muted);
+}
+.tile .host { font-size: 19px; font-weight: 650; margin: 2px 0 6px; }
+.tile .distro { font-size: 14px; color: var(--muted); }
+.tile .meta { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
+
+.chip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  color: var(--muted);
+}
+.chip.hyper-v { color: var(--onprem); border-color: var(--onprem); }
+.chip.azure   { color: var(--azure);  border-color: var(--azure); }
+.chip.down    { color: var(--bad);    border-color: var(--bad); }
+
+/* ---------------------------------------------------------------- counters */
+.counters { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+
+.counter {
+  flex: 1 1 150px;
+  padding: 14px 18px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.counter .value { display: block; font-size: 34px; font-weight: 700; line-height: 1.1; }
+.counter .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+
+/* ------------------------------------------------------------------- board */
+.board { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+.board table { width: 100%; border-collapse: collapse; }
+.board th {
+  text-align: left;
+  padding: 11px 14px;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 1.1px;
+  color: var(--muted);
+  background: var(--panel-2);
+  border-bottom: 1px solid var(--line);
+}
+.board td { padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
+.board tr:last-child td { border-bottom: none; }
+.board tr.changed { animation: row-flash 1600ms ease-out; }
+
+@keyframes row-flash {
+  0%   { background: rgba(47, 129, 247, 0.30); }
+  100% { background: transparent; }
+}
+
+.progress-col { width: 150px; }
+.progress { height: 8px; background: var(--panel-2); border-radius: 999px; overflow: hidden; }
+.progress .bar { height: 100%; width: 0; background: var(--accent); transition: width 600ms ease; }
+.progress .bar.done { background: var(--good); }
+
+.status { font-weight: 600; }
+.status-CREATED          { color: var(--muted); }
+.status-PICKED_UP        { color: #a5d6ff; }
+.status-IN_TRANSIT       { color: var(--accent); }
+.status-AT_HUB           { color: #d2a8ff; }
+.status-OUT_FOR_DELIVERY { color: var(--warn); }
+.status-DELIVERED        { color: var(--good); }
+.status-EXCEPTION        { color: var(--bad); }
+
+.host-tag { font-size: 13px; color: var(--muted); }
+
+/* ------------------------------------------------------------- track pages */
+body.track main { max-width: 760px; margin: 0 auto; }
+
+.card {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 24px 26px;
+  margin-bottom: 20px;
+}
+.card h1 { margin: 0 0 6px; font-size: 26px; }
+.card h2 { font-size: 17px; margin: 22px 0 10px; }
+.lede { color: var(--muted); margin: 0 0 20px; }
+
+form { display: grid; gap: 14px; }
+label { display: grid; gap: 5px; font-size: 14px; color: var(--muted); }
+
+input {
+  padding: 11px 13px;
+  font-size: 16px;
+  color: var(--text);
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+button {
+  padding: 12px 18px;
+  font-size: 16px;
+  font-weight: 650;
+  color: #fff;
+  background: var(--accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+}
+button.secondary { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); }
+button:disabled { opacity: 0.55; cursor: progress; }
+
+.status-line { font-size: 19px; font-weight: 600; margin: 14px 0 18px; }
+
+.facts { display: grid; grid-template-columns: 130px 1fr; gap: 6px 14px; margin: 0; }
+.facts dt { color: var(--muted); font-size: 14px; }
+.facts dd { margin: 0; }
+
+.scans { list-style: none; margin: 0; padding: 0; }
+.scans li { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.scans li:last-child { border-bottom: none; }
+.scans .scan-type { font-weight: 650; }
+.scans .scan-meta { display: block; font-size: 13px; color: var(--muted); }
+
+.hint { color: var(--muted); font-size: 14px; }

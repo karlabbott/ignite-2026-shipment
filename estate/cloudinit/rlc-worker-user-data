@@ -1,0 +1,112 @@
+#cloud-config
+# cloud-init user-data — rocky-worker (Rocky Linux from CIQ, RLC+ 10)
+#
+# RLC+ is distributed as a qcow2 cloud image, not an installer ISO, so this VM
+# is built by image import rather than unattended install:
+#
+#   1. qemu-img converts the qcow2 to a dynamic VHDX
+#   2. the VHDX is expanded to the estate disk size
+#   3. this file is delivered on a NoCloud seed ISO labelled CIDATA
+#   4. cloud-init runs once on first boot, then is disabled (see runcmd)
+#
+# Because it starts from a generic cloud image, this VM has NO WALinuxAgent --
+# the divergence we want -- without anyone having to remove anything.
+#
+# Divergences from a cloud-ready build are marked DIVERGENCE.
+
+hostname: rocky-worker
+fqdn: rocky-worker.99b.local
+prefer_fqdn_over_hostname: false
+
+users:
+  - name: estate
+    gecos: Estate admin
+    groups: [wheel]
+    shell: /bin/bash
+    sudo: "ALL=(ALL) NOPASSWD:ALL"
+    lock_passwd: false
+    passwd: "!!PASSWORD_HASH!!"
+    ssh_authorized_keys:
+      - "!!SSH_PUBKEY!!"
+
+ssh_pwauth: false
+disable_root: true
+
+# Grow the root filesystem into the expanded VHDX on first boot.
+growpart:
+  mode: auto
+  devices: ["/"]
+  ignore_growroot_disabled: false
+resize_rootfs: true
+
+packages:
+  - python3
+  - python3-pip
+  - python3-devel
+  - gcc
+  - chrony
+  - curl
+  - tar
+
+package_update: true
+
+write_files:
+  # DIVERGENCE 1: hosts file pinned to the lab subnet. Silently wrong the
+  # moment the estate lands in Azure with new addresses.
+  - path: /etc/hosts
+    append: true
+    content: |
+      192.168.90.11   rhel-db.99b.local       rhel-db
+      192.168.90.12   sles-api.99b.local      sles-api
+      192.168.90.13   ubuntu-web.99b.local    ubuntu-web
+      192.168.90.14   rocky-worker.99b.local  rocky-worker
+
+  # DIVERGENCE 4: pin cloud-init to no datasource once it has done its one job.
+  # A long-lived on-prem VM does not have an active cloud datasource. This is a
+  # large part of why the machine will not pick up Azure provisioning after
+  # migration -- and it mirrors what the Ubuntu tier does in its late-commands.
+  - path: /etc/cloud/cloud.cfg.d/99-datasource.cfg
+    permissions: "0644"
+    content: |
+      datasource_list: [ None ]
+
+  # Record the as-built state so the baseline is provable later.
+  - path: /usr/local/sbin/write-estate-baseline
+    permissions: "0755"
+    content: |
+      #!/bin/bash
+      {
+        echo "built:    $(date -Is)"
+        echo "distro:   $(. /etc/os-release && echo "$PRETTY_NAME")"
+        echo "kernel:   $(uname -r)"
+        echo "tier:     worker"
+        echo "source:   RLC+ qcow2 cloud image (converted to VHDX)"
+        echo "walinuxagent: absent (generic cloud image never had it)"
+        echo "cloud-init:   ran once at build, then disabled (deliberate)"
+        echo "fstab:        UUID (clean - this VM should migrate without drama)"
+        echo "serial console: enabled (deliberate contrast with rhel-db)"
+      } > /etc/estate-baseline
+
+runcmd:
+  # DIVERGENCE 2: serial console IS enabled here.
+  # The demo needs one machine you can actually watch boot in Azure, so the
+  # audience learns the difference between "broken and diagnosable" and
+  # "broken and silent". rhel-db and sles-api are the silent ones.
+  - grubby --update-kernel=ALL --args="console=tty0 console=ttyS0,115200n8"
+  - systemctl enable --now serial-getty@ttyS0.service
+
+  - systemctl enable --now chronyd
+
+  # DIVERGENCE 3: firewalld scoped to the lab subnet only.
+  - systemctl enable --now firewalld
+  - firewall-cmd --permanent --add-service=ssh
+  - firewall-cmd --reload
+
+  - /usr/local/sbin/write-estate-baseline
+
+  # Disable cloud-init entirely. The datasource pin is written above via
+  # write_files; this is the second half of the same divergence.
+  - touch /etc/cloud/cloud-init.disabled
+  - systemctl disable cloud-init cloud-init-local cloud-config cloud-final
+
+final_message: "rocky-worker built from RLC+ cloud image in $UPTIME seconds"

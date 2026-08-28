@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}{{ brand }} — Track a shipment{% endblock %}
+{% block body_class %}track{% endblock %}
+
+{% block content %}
+  <section class="card" id="create-card">
+    <h1>Ship something</h1>
+    <p class="lede">
+      Create a shipment and watch it move across a Linux estate that is being
+      migrated to Azure while you watch.
+    </p>
+    <form id="create-form" autocomplete="off">
+      <label>From
+        <input name="origin" maxlength="60" required placeholder="Seattle, WA" value="Seattle, WA">
+      </label>
+      <label>To
+        <input name="destination" maxlength="60" required placeholder="Chicago, IL">
+      </label>
+      <label>What is it?
+        <input name="description" maxlength="120" placeholder="Something fragile" value="Conference swag">
+      </label>
+      <label>Weight (kg)
+        <input name="weight_kg" type="number" min="0.1" max="999" step="0.1" value="2.5">
+      </label>
+      <label>Your name or handle
+        <input name="created_by" maxlength="60" placeholder="attendee" value="attendee">
+      </label>
+      <button type="submit" id="create-button">Create shipment</button>
+    </form>
+  </section>
+
+  <section class="card hidden" id="result-card">
+    <h1>Tracking <span id="result-tracking" class="mono"></span></h1>
+    <div class="progress"><div id="result-bar" class="bar"></div></div>
+    <p id="result-status" class="status-line"></p>
+    <dl class="facts">
+      <dt>Route</dt><dd id="result-route"></dd>
+      <dt>Carrier</dt><dd id="result-carrier"></dd>
+      <dt>Last location</dt><dd id="result-location">Awaiting first scan</dd>
+    </dl>
+    <h2>Scan history</h2>
+    <ul id="result-scans" class="scans"></ul>
+    <p class="hint">
+      Each scan line shows which VM produced it. When the estate moves to Azure,
+      the hostnames and platform labels change under your shipment.
+    </p>
+    <button id="another-button" class="secondary">Ship another</button>
+  </section>
+
+  <section class="card lookup">
+    <h2>Already have a number?</h2>
+    <form id="lookup-form" autocomplete="off">
+      <label>Tracking number
+        <input name="tracking" class="mono" maxlength="20" placeholder="NNF12345678"
+               value="{{ prefill }}" required>
+      </label>
+      <button type="submit" class="secondary">Look it up</button>
+    </form>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script>window.PREFILL = {{ prefill | tojson }};</script>
+  <script src="/static/track.js"></script>
+{% endblock %}

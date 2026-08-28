@@ -1,0 +1,11 @@
+[Unit]
+Description=Run the NinetyNine Freight database heartbeat every 10 seconds
+
+[Timer]
+OnBootSec=30s
+OnUnitActiveSec=10s
+AccuracySec=1s
+Unit=shipment-db-heartbeat.service
+
+[Install]
+WantedBy=timers.target

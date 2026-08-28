@@ -1,0 +1,16 @@
+# Every artifact in this repo is consumed by Linux: bash scripts, kickstart and
+# cloud-init answer files, systemd units, nginx config. A CRLF line ending in any
+# of them is a genuine failure -- bash reports "syntax error near unexpected
+# token", systemd silently ignores the unit, and Anaconda rejects the kickstart.
+#
+# Windows checkouts get LF for these regardless of core.autocrlf.
+
+* text=auto eol=lf
+
+*.ps1   text eol=crlf
+
+*.iso   binary
+*.qcow2 binary
+*.vhdx  binary
+*.png   binary
+*.jpg   binary

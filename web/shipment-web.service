@@ -1,0 +1,31 @@
+[Unit]
+Description=NinetyNine Freight web tier (Ubuntu)
+Documentation=https://github.com/karlabbott/ignite-2026-shipment
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+User=shipment
+Group=shipment
+WorkingDirectory=/opt/shipment
+Environment=PYTHONPATH=/opt/shipment
+Environment=PYTHONUNBUFFERED=1
+EnvironmentFile=/etc/shipment/shipment.env
+ExecStart=/opt/shipment/venv/bin/uvicorn web.app.main:app \
+    --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips='127.0.0.1'
+Restart=always
+RestartSec=5
+
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=yes
+ProtectKernelTunables=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+RestrictRealtime=yes
+LockPersonality=yes
+
+[Install]
+WantedBy=multi-user.target

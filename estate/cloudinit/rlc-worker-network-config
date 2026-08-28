@@ -1,0 +1,25 @@
+# cloud-init network-config (v2) — rocky-worker
+#
+# DIVERGENCE: static addressing on the lab subnet, no DHCP.
+# Carried verbatim by Azure Migrate, at which point 192.168.90.14 does not
+# exist in the target VNet and the VM is unreachable. This is one of the
+# failures the audience watches get diagnosed.
+#
+# The match/set-name pair normalises whatever the cloud image calls the NIC
+# (eth0, ens3, enp0s3...) to eth0, so the estate is consistent across distros.
+
+version: 2
+ethernets:
+  eth0:
+    match:
+      name: "e*"
+    set-name: eth0
+    dhcp4: false
+    dhcp6: false
+    addresses:
+      - 192.168.90.14/24
+    routes:
+      - to: default
+        via: 192.168.90.1
+    nameservers:
+      addresses: [!!DNS_SERVERS!!]

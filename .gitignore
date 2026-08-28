@@ -1,0 +1,18 @@
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated answer media may contain rendered credentials.
+estate/out/
+*.iso
+*.qcow2
+*.vhd
+*.vhdx
+
+# Runtime configuration contains database credentials.
+*.env
+!shipment.env.example
+
+.DS_Store
+Thumbs.db
