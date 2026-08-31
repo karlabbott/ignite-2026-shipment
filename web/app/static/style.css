@@ -42,7 +42,8 @@ body {
   border-bottom: 1px solid #aeb5bd;
 }
 
-.brand { display: flex; align-items: center; gap: 16px; }
+.brand { display: flex; align-items: center; gap: 16px; color: inherit; text-decoration: none; }
+.brand:focus-visible { outline: 3px solid var(--accent); outline-offset: 5px; }
 .zava-logo { display: inline-flex; align-items: center; color: #000; font-weight: 800; }
 .zava-z {
   display: inline-grid;
@@ -74,6 +75,9 @@ body {
 
 .qr-hint { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font-size: 15px; }
 .qr-hint code { color: var(--text); font-size: 17px; }
+.track-link { text-decoration-color: var(--accent); text-underline-offset: 4px; }
+.track-link:hover code { color: var(--accent); }
+.track-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
 
 /* ------------------------------------------------------------------ banner */
 .banner {
