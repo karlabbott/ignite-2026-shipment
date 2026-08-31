@@ -1,4 +1,4 @@
-"""NinetyNine Freight web tier.
+"""Zava Logistics web tier.
 
 Serves three things:
 
@@ -88,7 +88,7 @@ async def lifespan(app: FastAPI):
     client = httpx.AsyncClient(
         base_url=settings.api_base_url,
         timeout=httpx.Timeout(settings.api_timeout_seconds),
-        headers={"user-agent": "ninetynine-web/1.0"},
+        headers={"user-agent": "zava-logistics-web/1.0"},
     )
     stop = threading.Event()
     thread = threading.Thread(target=_heartbeat_loop, args=(stop,), daemon=True)
@@ -102,7 +102,7 @@ async def lifespan(app: FastAPI):
         await client.aclose()
 
 
-app = FastAPI(title="NinetyNine Freight", version="1.0.0", lifespan=lifespan)
+app = FastAPI(title="Zava Logistics", version="1.0.0", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "static")), name="static")
 
 

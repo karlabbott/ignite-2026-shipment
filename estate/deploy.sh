@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deploy NinetyNine Freight to the four-VM estate over SSH.
+# Deploy Zava Logistics to the four-VM estate over SSH.
 #
 # Run from WSL once all four VMs have finished their unattended installs:
 #     wsl -d Ubuntu-24.04 -e bash estate/deploy.sh
@@ -116,7 +116,7 @@ SHIPMENT_CREATE_GLOBAL_LIMIT=240
 SHIPMENT_CORS_ORIGINS=https://dash.99b.org,https://track.99b.org,http://${WEB_HOST}
 SHIPMENT_API_URL=http://${API_HOST}:8080
 SHIPMENT_API_TIMEOUT=5
-SHIPMENT_BRAND=NinetyNine Freight
+SHIPMENT_BRAND=Zava Logistics
 # Blank on purpose. Nothing resolves to this lab, so the web tier derives the
 # tracking address from the request and shows http://${WEB_HOST}/track.
 # Set this to https://track.99b.org only once the estate is in Azure.

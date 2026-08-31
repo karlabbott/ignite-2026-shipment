@@ -1,7 +1,7 @@
 #cloud-config
 # Autoinstall — ubuntu-web (Ubuntu Server 26.04 LTS "Resolute Raccoon")
 #
-# Web tier for NinetyNine Freight: nginx on :80 in front of uvicorn on :8000.
+# Web tier for Zava Logistics: nginx on :80 in front of uvicorn on :8000.
 # Serves dash.99b.org and track.99b.org.
 #
 # Delivery: build an ISO labelled CIDATA containing this file as `user-data`
@@ -140,10 +140,10 @@ autoinstall:
     # DIVERGENCE 7: hosts file pinned to the lab subnet.
     - |
       curtin in-target -- bash -c 'cat >> /etc/hosts <<HOSTS
-      192.168.90.11   rhel-db.99b.local       rhel-db
-      192.168.90.12   sles-api.99b.local      sles-api
-      192.168.90.13   ubuntu-web.99b.local    ubuntu-web
-      192.168.90.14   rocky-worker.99b.local  rocky-worker
+      192.168.90.11   rhel-db
+      192.168.90.12   sles-api
+      192.168.90.13   ubuntu-web
+      192.168.90.14   rocky-worker
       HOSTS'
 
     - |

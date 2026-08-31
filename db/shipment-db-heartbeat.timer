@@ -1,5 +1,5 @@
 [Unit]
-Description=Run the NinetyNine Freight database heartbeat every 10 seconds
+Description=Run the Zava Logistics database heartbeat every 10 seconds
 
 [Timer]
 OnBootSec=30s

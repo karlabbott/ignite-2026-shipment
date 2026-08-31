@@ -1,20 +1,21 @@
-/* NinetyNine Freight — shared styling.
+/* Zava Logistics — shared styling.
    High contrast and large type: this is read from the back of a breakout room. */
 
 :root {
-  --bg: #0d1117;
-  --panel: #161b22;
-  --panel-2: #1c2230;
-  --line: #2b3444;
-  --text: #e6edf3;
-  --muted: #8b97a8;
-  --accent: #2f81f7;
-  --onprem: #d29922;
-  --azure: #2f81f7;
-  --good: #3fb950;
-  --bad: #f85149;
-  --warn: #d29922;
-  --radius: 10px;
+  --bg: #eef0f3;
+  --panel: #ffffff;
+  --panel-2: #f4f5f7;
+  --line: #d4d8dd;
+  --text: #090a0b;
+  --muted: #65707b;
+  --accent: #0089ad;
+  --accent-bright: #27c2df;
+  --onprem: #111111;
+  --azure: #0078d4;
+  --good: #15803d;
+  --bad: #c62828;
+  --warn: #a45f00;
+  --radius: 4px;
 }
 
 * { box-sizing: border-box; }
@@ -35,49 +36,66 @@ body {
   align-items: center;
   justify-content: space-between;
   gap: 24px;
-  padding: 14px 28px;
+  padding: 18px 32px;
   background: var(--panel);
-  border-bottom: 1px solid var(--line);
+  border-top: 7px solid var(--accent-bright);
+  border-bottom: 1px solid #aeb5bd;
 }
 
-.brand { display: flex; align-items: center; gap: 12px; }
-
-.brand .mark {
+.brand { display: flex; align-items: center; gap: 16px; }
+.zava-logo { display: inline-flex; align-items: center; color: #000; font-weight: 800; }
+.zava-z {
   display: inline-grid;
   place-items: center;
-  width: 40px; height: 40px;
-  border-radius: var(--radius);
-  background: var(--accent);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #000;
   color: #fff;
+  font-size: 35px;
+  line-height: 1;
+  z-index: 1;
+}
+.zava-ava {
+  margin-left: -10px;
+  padding: 1px 13px 3px 17px;
+  border: 2px solid #000;
+  border-left: 0;
+  border-radius: 0 14px 14px 0;
+  font-size: 29px;
+  line-height: 1.1;
+  letter-spacing: 1px;
+}
+.brand-division {
+  font-size: 14px;
   font-weight: 800;
-  font-size: 19px;
+  letter-spacing: 3.2px;
 }
 
-.brand .name { font-size: 22px; font-weight: 650; letter-spacing: 0.2px; }
-
-.qr-hint { color: var(--muted); font-size: 15px; }
+.qr-hint { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font-size: 15px; }
 .qr-hint code { color: var(--text); font-size: 17px; }
 
 /* ------------------------------------------------------------------ banner */
 .banner {
   padding: 12px 28px;
-  background: rgba(248, 81, 73, 0.14);
+  background: #fde8e7;
   border-bottom: 1px solid var(--bad);
-  color: #ffb4ae;
+  color: #8e1f1a;
   font-size: 16px;
 }
 .banner.warn {
-  background: rgba(210, 153, 34, 0.14);
+  background: #fff3d6;
   border-bottom-color: var(--warn);
-  color: #ffd98a;
+  color: #754300;
 }
 
-main { padding: 22px 28px 48px; }
+main { padding: 28px 32px 52px; }
 
 /* ------------------------------------------------------------ health strip */
 .strip-title {
-  margin: 0 0 10px;
-  font-size: 13px;
+  margin: 0 0 12px;
+  font-size: 15px;
+  font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--muted);
@@ -92,34 +110,48 @@ main { padding: 22px 28px 48px; }
 
 .tile {
   position: relative;
-  padding: 14px 16px;
+  padding: 18px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-left: 5px solid var(--muted);
+  border-top: 5px solid var(--muted);
+  border-left: 1px solid var(--line);
   border-radius: var(--radius);
+  box-shadow: 0 8px 20px rgba(16, 24, 40, 0.07);
   transition: border-color 300ms ease, background 300ms ease;
 }
 
-.tile.platform-hyper-v { border-left-color: var(--onprem); }
-.tile.platform-azure   { border-left-color: var(--azure); }
-.tile.unhealthy        { border-left-color: var(--bad); opacity: 0.55; }
+.tile.platform-hyper-v { border-top-color: var(--onprem); }
+.tile.platform-azure   { border-top-color: var(--azure); }
+.tile.unhealthy        { border-top-color: var(--bad); opacity: 0.55; }
 
 /* Fires when a tile's platform label changes, so the Hyper-V to Azure flip is
    impossible to miss from the back of the room. */
 @keyframes tile-flip {
-  0%   { background: rgba(47, 129, 247, 0.45); transform: scale(1.03); }
+  0%   { background: #b8ecf5; transform: scale(1.03); }
   100% { background: var(--panel); transform: scale(1); }
 }
 .tile.flipped { animation: tile-flip 1400ms ease-out; }
 
+.tile-heading { display: flex; align-items: center; gap: 14px; }
+.distro-mark {
+  display: inline-grid;
+  flex: 0 0 52px;
+  place-items: center;
+  width: 52px;
+  height: 52px;
+  background: var(--panel-2);
+  border-radius: 50%;
+}
+.distro-mark img { width: 31px; height: 31px; }
+.distro-mark.unavailable { color: var(--muted); font-size: 23px; font-weight: 800; }
 .tile .tier {
   font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 1.4px;
   color: var(--muted);
 }
-.tile .host { font-size: 19px; font-weight: 650; margin: 2px 0 6px; }
-.tile .distro { font-size: 14px; color: var(--muted); }
+.tile .host { font-size: 20px; font-weight: 800; margin-top: 1px; }
+.tile .distro { min-height: 42px; margin-top: 13px; font-size: 14px; color: var(--muted); }
 .tile .meta { margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap; }
 
 .chip {
@@ -144,8 +176,9 @@ main { padding: 22px 28px 48px; }
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
+  border-top: 3px solid #111;
 }
-.counter .value { display: block; font-size: 34px; font-weight: 700; line-height: 1.1; }
+.counter .value { display: block; font-size: 36px; font-weight: 800; line-height: 1.1; }
 .counter .label { font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
 
 /* ------------------------------------------------------------------- board */
@@ -166,7 +199,7 @@ main { padding: 22px 28px 48px; }
 .board tr.changed { animation: row-flash 1600ms ease-out; }
 
 @keyframes row-flash {
-  0%   { background: rgba(47, 129, 247, 0.30); }
+  0%   { background: #cceff5; }
   100% { background: transparent; }
 }
 
@@ -177,9 +210,9 @@ main { padding: 22px 28px 48px; }
 
 .status { font-weight: 600; }
 .status-CREATED          { color: var(--muted); }
-.status-PICKED_UP        { color: #a5d6ff; }
+.status-PICKED_UP        { color: #005a8c; }
 .status-IN_TRANSIT       { color: var(--accent); }
-.status-AT_HUB           { color: #d2a8ff; }
+.status-AT_HUB           { color: #7040a0; }
 .status-OUT_FOR_DELIVERY { color: var(--warn); }
 .status-DELIVERED        { color: var(--good); }
 .status-EXCEPTION        { color: var(--bad); }
@@ -218,7 +251,7 @@ button {
   font-size: 16px;
   font-weight: 650;
   color: #fff;
-  background: var(--accent);
+  background: #111;
   border: none;
   border-radius: 8px;
   cursor: pointer;

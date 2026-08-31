@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Checkpoint, restore, or list snapshots for the whole NinetyNine Freight estate.
+    Checkpoint, restore, or list snapshots for the whole Zava Logistics estate.
 
 .DESCRIPTION
     Rehearsing the break/fix act means resetting four VMs to a known state over

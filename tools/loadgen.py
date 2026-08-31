@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Background load generator for the NinetyNine Freight board.
+"""Background load generator for the Zava Logistics board.
 
 Creates shipments at a modest, human-plausible rate and advances existing ones,
 so the dashboard looks like a working freight operation rather than a demo with

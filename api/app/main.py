@@ -1,4 +1,4 @@
-"""NinetyNine Freight API — FastAPI service for the SUSE tier.
+"""Zava Logistics API — FastAPI service for the SUSE tier.
 
 Endpoints
 ---------
@@ -151,7 +151,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="NinetyNine Freight API",
+    title="Zava Logistics API",
     version="1.0.0",
     summary="Shipment tracking across a mixed Linux estate",
     lifespan=lifespan,
@@ -182,8 +182,8 @@ def require_db() -> Database:
 
 
 def _new_tracking_number() -> str:
-    """NNF + 8 digits. Collisions are handled by retrying the insert."""
-    return f"NNF{secrets.randbelow(90_000_000) + 10_000_000:08d}"
+    """ZAV + 8 digits. Collisions are handled by retrying the insert."""
+    return f"ZAV{secrets.randbelow(90_000_000) + 10_000_000:08d}"
 
 
 def _decorate(row: dict[str, Any]) -> dict[str, Any]:

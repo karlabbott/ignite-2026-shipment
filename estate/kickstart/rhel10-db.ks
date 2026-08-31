@@ -1,6 +1,6 @@
 # Kickstart — rhel-db (Red Hat Enterprise Linux 10)
 #
-# Database tier for NinetyNine Freight. Hosts SQL Server 2025 on Linux.
+# Database tier for Zava Logistics. Hosts SQL Server 2025 on Linux.
 #
 # READ THIS BEFORE "FIXING" ANYTHING BELOW.
 # This machine is deliberately built the way a long-lived on-premises VM
@@ -23,7 +23,7 @@ timezone America/Los_Angeles --utc
 # DIVERGENCE 1: static addressing, no cloud-init, no DHCP.
 # A migrated VM keeps this config and comes up on Azure unreachable, because
 # 192.168.90.11 does not exist in the target VNet.
-network --bootproto=static --ip=192.168.90.11 --netmask=255.255.255.0 --gateway=192.168.90.1 --nameserver=!!DNS_SERVERS!! --device=eth0 --activate --hostname=rhel-db.99b.local
+network --bootproto=static --ip=192.168.90.11 --netmask=255.255.255.0 --gateway=192.168.90.1 --nameserver=!!DNS_SERVERS!! --device=eth0 --activate --hostname=rhel-db
 
 # Root is locked; all access is by key as the estate admin.
 rootpw --lock
@@ -138,10 +138,10 @@ chmod 0440 /etc/sudoers.d/estate
 # Hosts file pinned to the lab subnet -- another thing that is silently wrong
 # the moment these machines land in Azure with new addresses.
 cat >> /etc/hosts <<'HOSTS'
-192.168.90.11   rhel-db.99b.local       rhel-db
-192.168.90.12   sles-api.99b.local      sles-api
-192.168.90.13   ubuntu-web.99b.local    ubuntu-web
-192.168.90.14   rocky-worker.99b.local  rocky-worker
+192.168.90.11   rhel-db
+192.168.90.12   sles-api
+192.168.90.13   ubuntu-web
+192.168.90.14   rocky-worker
 HOSTS
 
 # Record the as-built state so the baseline is provable later.

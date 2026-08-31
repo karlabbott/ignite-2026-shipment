@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# End-to-end check of the NinetyNine Freight estate.
+# End-to-end check of the Zava Logistics estate.
 #
 # Run from anywhere that can reach the web tier. Exits non-zero on the first
 # real failure so it can be wired into a rehearsal script.

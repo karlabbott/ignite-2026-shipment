@@ -1,5 +1,5 @@
 [Unit]
-Description=Publish the NinetyNine Freight database tier heartbeat
+Description=Publish the Zava Logistics database tier heartbeat
 After=mssql-server.service
 Requires=mssql-server.service
 

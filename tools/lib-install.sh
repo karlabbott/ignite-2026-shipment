@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Shared install helpers for every tier of the NinetyNine Freight estate.
+# Shared install helpers for every tier of the Zava Logistics estate.
 #
 # Sourced by api/install-sles.sh, web/install-ubuntu.sh and worker/install-rocky.sh.
 # Everything here is idempotent so a half-finished install can simply be re-run.

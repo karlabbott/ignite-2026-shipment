@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the NinetyNine Freight API tier on SUSE Linux Enterprise Server 16.
+# Install the Zava Logistics API tier on SUSE Linux Enterprise Server 16.
 #
 # SLES 16 ships Python 3.13 as `python313` and uses SELinux rather than
 # AppArmor. Both matter later: SELinux is what the CIS hardening act tunes.

@@ -2,6 +2,12 @@
 
 const TIER_ORDER = ["web", "api", "db", "worker"];
 const TIER_LABEL = { web: "Web", api: "API", db: "Database", worker: "Worker" };
+const TIER_LOGO = {
+  web: "/static/logos/ubuntu.svg",
+  api: "/static/logos/suse.svg",
+  db: "/static/logos/redhat.svg",
+  worker: "/static/logos/rockylinux.svg",
+};
 
 /* Remembering the previous platform per tier is what lets us flash a tile the
    moment it moves from Hyper-V to Azure. That single animation is the payoff of
@@ -19,8 +25,13 @@ function renderEstate(payload) {
     if (!tile) {
       return `
         <div class="tile unhealthy" data-tier="${tier}">
-          <div class="tier">${TIER_LABEL[tier]}</div>
-          <div class="host">not reporting</div>
+          <div class="tile-heading">
+            <span class="distro-mark unavailable">?</span>
+            <div>
+              <div class="tier">${TIER_LABEL[tier]}</div>
+              <div class="host">not reporting</div>
+            </div>
+          </div>
           <div class="distro">No heartbeat received</div>
           <div class="meta"><span class="chip down">offline</span></div>
         </div>`;
@@ -45,8 +56,15 @@ function renderEstate(payload) {
 
     return `
       <div class="${classes}" data-tier="${tier}">
-        <div class="tier">${TIER_LABEL[tier]}</div>
-        <div class="host">${escapeHTML(tile.hostname)}</div>
+        <div class="tile-heading">
+          <span class="distro-mark">
+            <img src="${TIER_LOGO[tier]}" alt="" aria-hidden="true">
+          </span>
+          <div>
+            <div class="tier">${TIER_LABEL[tier]}</div>
+            <div class="host">${escapeHTML(tile.hostname)}</div>
+          </div>
+        </div>
         <div class="distro">${escapeHTML(tile.distro)}</div>
         <div class="meta">
           <span class="chip ${platformClass(platform)}">${escapeHTML(platform)}</span>

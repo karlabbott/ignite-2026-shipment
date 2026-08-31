@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-    Provision the four-VM NinetyNine Freight estate on Hyper-V.
+    Provision the four-VM Zava Logistics estate on Hyper-V.
 
 .DESCRIPTION
     Creates an internal switch with NAT (so the VMs reach the internet for

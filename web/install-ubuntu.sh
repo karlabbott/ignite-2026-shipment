@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the NinetyNine Freight web tier on Ubuntu Server.
+# Install the Zava Logistics web tier on Ubuntu Server.
 #
 # uvicorn binds to 127.0.0.1:8000 and nginx terminates on :80, so TLS and the
 # public rate limits live in one obvious place.

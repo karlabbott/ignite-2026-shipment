@@ -1,4 +1,4 @@
-/* NinetyNine Freight — seed data.
+/* Zava Logistics — seed data.
    Idempotent: re-running tops the board back up without duplicating carriers. */
 
 USE shipping;
@@ -6,7 +6,7 @@ GO
 
 MERGE dbo.carriers AS target
 USING (VALUES
-    ('NNF', N'NinetyNine Freight',   N'Seattle'),
+    ('ZAV', N'Zava Logistics',       N'Seattle'),
     ('CAS', N'Cascade Logistics',    N'Portland'),
     ('PBS', N'Puget Sound Express',  N'Tacoma'),
     ('RNR', N'Rainier Overland',     N'Spokane')
@@ -60,7 +60,7 @@ BEGIN
         DECLARE @status VARCHAR(20) =
             (SELECT status FROM @statuses WHERE idx = @i % 6);
         DECLARE @tracking VARCHAR(20) =
-            CONCAT('NNF', RIGHT(CONCAT('00000000', CAST(100000 + @i * 7919 AS VARCHAR(9))), 8));
+            CONCAT('ZAV', RIGHT(CONCAT('00000000', CAST(100000 + @i * 7919 AS VARCHAR(9))), 8));
 
         INSERT INTO dbo.shipments
             (tracking_number, carrier_id, origin, destination, description,

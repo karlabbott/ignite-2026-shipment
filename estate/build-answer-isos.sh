@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the unattended-install answer ISOs for the NinetyNine Freight estate.
+# Build the unattended-install answer ISOs for the Zava Logistics estate.
 #
 # Run this inside WSL:
 #   wsl -d Ubuntu -e bash estate/build-answer-isos.sh

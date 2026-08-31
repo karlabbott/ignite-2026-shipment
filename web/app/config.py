@@ -42,7 +42,7 @@ class WebSettings(BaseSettings):
         default_factory=lambda: _env_float("SHIPMENT_API_TIMEOUT", 5.0)
     )
 
-    brand: str = field(default_factory=lambda: _env("SHIPMENT_BRAND", "NinetyNine Freight"))
+    brand: str = field(default_factory=lambda: _env("SHIPMENT_BRAND", "Zava Logistics"))
 
     # The address shown on the dashboard for the audience-facing tracking page.
     #

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the NinetyNine Freight worker on Rocky Linux.
+# Install the Zava Logistics worker on Rocky Linux.
 #
 # The worker vendors the API tier's db/config modules, so `api/` is deployed
 # alongside `worker/` even though uvicorn never runs here.

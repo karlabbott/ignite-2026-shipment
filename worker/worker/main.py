@@ -1,4 +1,4 @@
-"""NinetyNine Freight worker — the only tier that changes shipment state.
+"""Zava Logistics worker — the only tier that changes shipment state.
 
 Three loops run in one process:
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Install SQL Server 2025 on Red Hat Enterprise Linux 10 and lay down the
-# NinetyNine Freight schema.
+# Zava Logistics schema.
 #
 # SQL Server 2025 is required: RHEL 10 is only a supported platform from
 # SQL Server 2025 CU1 onwards. SQL Server 2022 supports RHEL 8 and 9 only.
@@ -93,6 +93,9 @@ sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b \
 
 log "seeding demo data"
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/02-seed.sql"
+
+log "applying Zava Logistics data migration"
+sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/04-zava-rebrand.sql"
 
 # The db tier has no Python service, so its heartbeat is written once here and
 # refreshed by a lightweight timer -- see db/shipment-db-heartbeat.*

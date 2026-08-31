@@ -1,6 +1,6 @@
 # Kickstart - rocky-worker (RLC+ 10)
 #
-# Worker tier for NinetyNine Freight. This VM deliberately gets a serial
+# Worker tier for Zava Logistics. This VM deliberately gets a serial
 # console and keeps UUID-based mounts so at least one tier migrates cleanly.
 #
 # Delivery: ISO labelled OEMDRV containing this file as ks.cfg. The CIQ
@@ -18,7 +18,7 @@ timezone America/Los_Angeles --utc
 
 network --bootproto=static --ip=192.168.90.14 --netmask=255.255.255.0 \
         --gateway=192.168.90.1 --nameserver=!!DNS_SERVERS!! \
-        --device=eth0 --activate --hostname=rocky-worker.99b.local
+        --device=eth0 --activate --hostname=rocky-worker
 
 rootpw --lock
 user --name=estate --groups=wheel --gecos="Estate admin" --iscrypted \
@@ -66,10 +66,10 @@ echo 'estate ALL=(ALL) NOPASSWD: ALL' > /etc/sudoers.d/estate
 chmod 0440 /etc/sudoers.d/estate
 
 cat >> /etc/hosts <<'HOSTS'
-192.168.90.11   rhel-db.99b.local       rhel-db
-192.168.90.12   sles-api.99b.local      sles-api
-192.168.90.13   ubuntu-web.99b.local    ubuntu-web
-192.168.90.14   rocky-worker.99b.local  rocky-worker
+192.168.90.11   rhel-db
+192.168.90.12   sles-api
+192.168.90.13   ubuntu-web
+192.168.90.14   rocky-worker
 HOSTS
 
 cp /etc/fstab /root/fstab.as-built
