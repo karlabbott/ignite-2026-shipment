@@ -87,7 +87,9 @@ that changes when the estate lands in Azure with new addresses. Start from
 ```bash
 sudo ./db/install-mssql-rhel.sh        # on rhel-db
 sudo ./api/install-sles.sh             # on sles-api
-sudo ./web/install-ubuntu.sh           # on ubuntu-web
+sudo depot login -u <org> -t <token>   # on rocky-worker
+sudo depot enable rlc-plus-10.2         # enables the matching online repos
+sudo ./web/install-ubuntu.sh            # on ubuntu-web
 sudo ./worker/install-rocky.sh         # on rocky-worker
 ./tools/smoke-test.sh                  # from anywhere on the lab subnet
 ```

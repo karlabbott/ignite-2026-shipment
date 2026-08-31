@@ -93,3 +93,18 @@ systemctl enable serial-getty@ttyS0.service || true
 # Preserve the CIQ customizations included by the vendor's own ISO Kickstart.
 %include /usr/share/anaconda/post-scripts/50-ciq-install-depot.ks
 %include /usr/share/anaconda/post-scripts/50-ciq-login-banner.ks
+
+# The RLC+ 10.2 ISO's Depot post-script expects CIQDepot/RPM-GPG-KEY, but the
+# media contains rpm-gpg-key-ciq. Recopy the payload after the vendor cleanup
+# and install the client directly with its actual signing-key filename.
+%post --nochroot
+cp -rf /run/install/repo/CIQDepot /mnt/sysimage/tmp/
+%end
+
+%post --log=/root/ks-depot-repair.log
+if ! rpm -q depot >/dev/null 2>&1; then
+    rpm --import /tmp/CIQDepot/rpm-gpg-key-ciq
+    dnf -y install /tmp/CIQDepot/depot-*.rpm
+fi
+rm -rf /tmp/CIQDepot
+%end
