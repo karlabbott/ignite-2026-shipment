@@ -15,12 +15,16 @@ require_root
 ROOT="$(repo_root)"
 
 log "installing OS packages"
-zypper --non-interactive refresh
-# python313 on SLES 16; fall back to the generic name on 15.x.
-zypper --non-interactive install --no-recommends \
-  python313 python313-pip python313-devel gcc curl \
-  || zypper --non-interactive install --no-recommends \
-       python3 python3-pip python3-devel gcc curl
+if rpm -q python313 python313-pip python313-devel gcc curl >/dev/null 2>&1; then
+  log "required SLES 16 packages are already installed"
+else
+  zypper --non-interactive refresh
+  # python313 on SLES 16; fall back to the generic name on 15.x.
+  zypper --non-interactive install --no-recommends \
+    python313 python313-pip python313-devel gcc curl \
+    || zypper --non-interactive install --no-recommends \
+         python3 python3-pip python3-devel gcc curl
+fi
 
 # Make sure `python3` resolves before the venv is built.
 if ! command -v python3 >/dev/null && command -v python3.13 >/dev/null; then

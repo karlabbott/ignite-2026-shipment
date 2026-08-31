@@ -34,7 +34,12 @@ fi
 
 # SQL Server version string, so the tile can prove which engine is answering.
 DETAIL="$(sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -h -1 -W -Q \
-  "SET NOCOUNT ON; SELECT CONCAT('SQL Server ', SERVERPROPERTY('ProductMajorVersion'), ' ', SERVERPROPERTY('Edition'))" \
+  "SET NOCOUNT ON; SELECT CONCAT(
+      'SQL Server ',
+      CONVERT(nvarchar(32), SERVERPROPERTY('ProductMajorVersion')),
+      ' ',
+      CONVERT(nvarchar(128), SERVERPROPERTY('Edition'))
+  )" \
   2>/dev/null | head -n 1 || printf 'SQL Server')"
 
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -d "${DB_NAME}" -Q "

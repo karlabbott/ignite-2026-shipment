@@ -58,6 +58,10 @@ install_payload() {
 
   find "${APP_ROOT}" -name '__pycache__' -type d -prune -exec rm -rf {} +
   chown -R root:"${APP_GROUP}" "${APP_ROOT}"
+  find "${APP_ROOT}/common" -type d -exec chmod 0755 {} +
+  for tier in "$@"; do
+    find "${APP_ROOT}/${tier}" -type d -exec chmod 0755 {} +
+  done
   chmod -R go-w "${APP_ROOT}"
 }
 
@@ -103,7 +107,11 @@ restart_unit() {
   log "restarting ${name}"
   systemctl restart "${name}"
   sleep 2
-  systemctl --no-pager --lines=10 status "${name}" || true
+  if ! systemctl is-active --quiet "${name}"; then
+    systemctl --no-pager --lines=20 status "${name}" || true
+    return 1
+  fi
+  systemctl --no-pager --lines=10 status "${name}"
 }
 
 open_firewall_port() {
