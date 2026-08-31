@@ -121,8 +121,7 @@ $Estate = @(
         Source       = 'iso'
         IsoPatterns  = @('*rlc*10*.iso', '*RLC*10*.iso')
         AnswerIso    = 'rlc10-worker-oemdrv.iso'
-        AnswerFirst  = $true
-        BootNote     = 'Zero touch. CIQ inst.ks=cdrom reads the first DVD; firmware boots the second.'
+        BootNote     = 'At GRUB, edit the normal Install entry and append inst.ks=hd:LABEL=OEMDRV:/ks.cfg.'
     }
 )
 
@@ -275,16 +274,8 @@ foreach ($vm in $Estate) {
     Set-VMFirmware -VMName $vm.Name -EnableSecureBoot On `
                    -SecureBootTemplate 'MicrosoftUEFICertificateAuthority'
 
-    $answerFirst = $vm.PSObject.Properties.Name -contains 'AnswerFirst' -and $vm.AnswerFirst
-    if ($answerFirst) {
-        # The RLC+ ISO hard-codes inst.ks=cdrom. Put our answer media at sr0,
-        # then explicitly boot the vendor installer from the second DVD.
-        Add-VMDvdDrive -VMName $vm.Name -Path $vm.AnswerFile
-        Add-VMDvdDrive -VMName $vm.Name -Path $vm.IsoFile
-    } else {
-        Add-VMDvdDrive -VMName $vm.Name -Path $vm.IsoFile
-        Add-VMDvdDrive -VMName $vm.Name -Path $vm.AnswerFile
-    }
+    Add-VMDvdDrive -VMName $vm.Name -Path $vm.IsoFile
+    Add-VMDvdDrive -VMName $vm.Name -Path $vm.AnswerFile
 
     # Boot from the installer DVD.
     $dvd = Get-VMDvdDrive -VMName $vm.Name |
@@ -317,17 +308,19 @@ Write-Host @"
          Start-VM -Name rhel-db ; vmconnect.exe localhost rhel-db
 
      rhel-db      zero touch - Anaconda finds the OEMDRV answer ISO
-     rocky-worker zero touch - Anaconda finds the OEMDRV answer ISO
+     rocky-worker at the normal CIQ Install entry press 'e', append
+                  'inst.ks=hd:LABEL=OEMDRV:/ks.cfg' to the linuxefi line
+                  after the vendor's inst.ks arguments, then press Ctrl-X
      ubuntu-web   at the GRUB menu press 'e', append 'autoinstall' to the
                   linux line, then Ctrl-X
      sles-api     at the boot menu press 'e' and append
                   inst.auto=http://192.168.90.1:8099/sles16-api.json
 
   3. When all four have installed and rebooted, take the clean baseline:
-         .\estate\Checkpoint-ShipmentEstate.ps1 -Name baseline
+         .\estate\Checkpoint-ShipmentEstate.ps1 -Name os-clean
 
   4. Deploy the application:
-         wsl -d Ubuntu -e bash estate/deploy.sh
+         wsl -d Ubuntu-24.04 -e bash estate/deploy.sh
 
   5. Verify:
          ./tools/smoke-test.sh

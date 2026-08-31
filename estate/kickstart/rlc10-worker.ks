@@ -3,7 +3,9 @@
 # Worker tier for NinetyNine Freight. This VM deliberately gets a serial
 # console and keeps UUID-based mounts so at least one tier migrates cleanly.
 #
-# Delivery: ISO labelled OEMDRV containing this file as ks.cfg.
+# Delivery: ISO labelled OEMDRV containing this file as ks.cfg. The CIQ
+# installer hard-codes its own inst.ks arguments, so append this at GRUB:
+# inst.ks=hd:LABEL=OEMDRV:/ks.cfg
 
 text
 eula --agreed

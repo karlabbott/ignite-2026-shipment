@@ -10,7 +10,7 @@ so the dashboard flips from "Hyper-V" to "Azure" tier-by-tier as cutover proceed
 
 | Tier   | Host           | Distro | Runs                                          |
 |--------|----------------|--------|-----------------------------------------------|
-| db     | `rhel-db`      | RHEL   | SQL Server 2022 on Linux — schema + work queue |
+| db     | `rhel-db`      | RHEL   | SQL Server 2025 on Linux — schema + work queue |
 | api    | `sles-api`     | SLES   | FastAPI / uvicorn — all business logic         |
 | web    | `ubuntu-web`   | Ubuntu | nginx + FastAPI — dashboard, public tracking   |
 | worker | `rocky-worker` | Rocky  | Queue consumer, scan generator, telemetry      |

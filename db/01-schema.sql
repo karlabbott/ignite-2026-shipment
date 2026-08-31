@@ -1,4 +1,4 @@
-/* NinetyNine Freight — schema for SQL Server 2022 on RHEL.
+/* NinetyNine Freight — schema for SQL Server 2025 on RHEL.
    Idempotent: safe to run repeatedly against rhel-db. */
 
 IF DB_ID('shipping') IS NULL

@@ -8,7 +8,8 @@
 # drive to each VM:
 #
 #   rhel10-db-oemdrv.iso        label OEMDRV   -> Anaconda auto-detects ks.cfg
-#   rlc10-worker-oemdrv.iso     label OEMDRV   -> Anaconda auto-detects ks.cfg
+#   rlc10-worker-oemdrv.iso     label OEMDRV   -> CIQ GRUB needs explicit
+#                                                   inst.ks=hd:LABEL=OEMDRV:/ks.cfg
 #   ubuntu26-web-cidata.iso     label CIDATA   -> subiquity NoCloud datasource
 #   sles16-api-profile.iso      label AGAMA    -> fallback if HTTP is unavailable
 #

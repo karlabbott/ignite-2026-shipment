@@ -2,7 +2,7 @@
 # Deploy NinetyNine Freight to the four-VM estate over SSH.
 #
 # Run from WSL once all four VMs have finished their unattended installs:
-#     wsl -d Ubuntu -e bash estate/deploy.sh
+#     wsl -d Ubuntu-24.04 -e bash estate/deploy.sh
 #
 # Order matters: the database tier must be serving before the API and worker
 # tiers start, or their first heartbeat fails and the health strip looks broken
