@@ -49,6 +49,10 @@ class Settings:
     create_rate_limit: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_RATE_LIMIT", 5))
     create_rate_window: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_RATE_WINDOW", 60))
     create_global_limit: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_GLOBAL_LIMIT", 240))
+    azure_maps_key: str = field(default_factory=lambda: _env("SHIPMENT_AZURE_MAPS_KEY", ""))
+    geocoding_timeout_seconds: int = field(
+        default_factory=lambda: _env_int("SHIPMENT_GEOCODING_TIMEOUT", 2)
+    )
 
     cors_origins: list[str] = field(
         default_factory=lambda: _env_list(

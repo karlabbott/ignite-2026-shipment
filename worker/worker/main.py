@@ -46,10 +46,20 @@ def _location_for(status: str, shipment: dict[str, Any]) -> str:
     """Pick a plausible location string for the scan we are about to write."""
     if status == pipeline.PICKED_UP:
         return shipment["origin"]
+    if (
+        status == pipeline.IN_TRANSIT
+        and shipment.get("route_stop_1")
+        and shipment.get("route_stop_2")
+    ):
+        return shipment["route_stop_1"]
+    if status == pipeline.AT_HUB:
+        return (
+            shipment.get("route_stop_2")
+            or shipment.get("route_stop_1")
+            or f"{shipment['carrier_hub']} Hub"
+        )
     if status in (pipeline.OUT_FOR_DELIVERY, pipeline.DELIVERED):
         return shipment["destination"]
-    if status == pipeline.AT_HUB:
-        return f"{shipment['carrier_hub']} Hub"
     return random.choice(settings.line_haul_stops)
 
 
@@ -68,7 +78,11 @@ def advance_one(shipment_id: int, requested_by: str) -> str | None:
     row = database.query_one(
         """
         SELECT s.shipment_id, s.tracking_number, s.status, s.origin, s.destination,
-               c.hub_city AS carrier_hub
+               c.hub_city AS carrier_hub,
+               (SELECT location FROM dbo.shipment_route_stops
+                 WHERE shipment_id = s.shipment_id AND stop_sequence = 1) AS route_stop_1,
+               (SELECT location FROM dbo.shipment_route_stops
+                 WHERE shipment_id = s.shipment_id AND stop_sequence = 2) AS route_stop_2
           FROM dbo.shipments s
           JOIN dbo.carriers  c ON c.carrier_id = s.carrier_id
          WHERE s.shipment_id = %s

@@ -50,7 +50,11 @@ Every architectural choice serves the demo, not enterprise purity.
    which is the single most important visual in the session.
 3. **Nothing is containerised.** Real VMs, real systemd units, real `/etc/fstab`
    entries, real distro package managers — because the session is about migrating VMs.
-4. **The data model is five tables you can read from the back of the room.**
+4. **Shipment movement follows a plausible route.** The API prefers Azure Maps
+   geocoding and falls back to an offline global city index. It stores up to two
+   intermediate hubs when the shipment is created, so the worker never teleports
+   freight through random cities or depends on geocoding while processing it.
+5. **The relational model remains deliberately small and explainable.**
 
 ## Layout
 

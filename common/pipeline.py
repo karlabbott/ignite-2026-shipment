@@ -43,7 +43,7 @@ NARRATIVE_FOR_STATUS: dict[str, str] = {
     CREATED: "Label created, awaiting collection",
     PICKED_UP: "Collected from shipper",
     IN_TRANSIT: "In transit on the line haul",
-    AT_HUB: "Arrived at the destination hub",
+    AT_HUB: "Arrived at a regional hub",
     OUT_FOR_DELIVERY: "Out for delivery",
     DELIVERED: "Delivered",
     EXCEPTION: "Delivery exception — held for review",

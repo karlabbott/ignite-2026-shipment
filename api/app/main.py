@@ -26,6 +26,7 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.middleware.cors import CORSMiddleware
 
 from common import estate, pipeline
+from common.routing import plan_route, warm_offline_index
 
 from .config import settings
 from .db import Database, DatabaseUnavailable
@@ -138,10 +139,17 @@ def _heartbeat_loop(stop: threading.Event) -> None:
 async def lifespan(app: FastAPI):
     for problem in settings.sanity_check():
         log.error("configuration problem: %s", problem)
+    warm_offline_index()
     stop = threading.Event()
     thread = threading.Thread(target=_heartbeat_loop, args=(stop,), daemon=True)
     thread.start()
     log.info("api tier online as %s", estate.identify(settings.tier))
+    log.info(
+        "route geocoding: %s",
+        "Azure Maps with offline fallback"
+        if settings.azure_maps_key
+        else "offline global fallback (Azure Maps key not configured)",
+    )
     try:
         yield
     finally:
@@ -342,6 +350,13 @@ def create_shipment(
     if not allowed:
         raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
 
+    route = plan_route(
+        payload.origin,
+        payload.destination,
+        azure_maps_key=settings.azure_maps_key,
+        timeout_seconds=settings.geocoding_timeout_seconds,
+    )
+
     try:
         if payload.carrier_code:
             carrier = db.query_one(
@@ -402,12 +417,41 @@ def create_shipment(
             (shipment_id, payload.created_by),
         )
         created = db.query_one(_SHIPMENT_SQL, (tracking,))
+
+        try:
+            for sequence, stop in enumerate(route.stops, start=1):
+                db.execute(
+                    """
+                    INSERT INTO dbo.shipment_route_stops
+                        (shipment_id, stop_sequence, location, latitude, longitude, route_source)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    (
+                        shipment_id,
+                        sequence,
+                        stop.name,
+                        stop.latitude,
+                        stop.longitude,
+                        route.source,
+                    ),
+                )
+        except DatabaseUnavailable as exc:
+            log.warning(
+                "created %s without persisted route stops: %s",
+                tracking,
+                exc,
+            )
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc
 
     if created is None:
         raise HTTPException(status_code=500, detail="Shipment vanished immediately after creation")
-    log.info("created %s for %s", tracking, payload.created_by)
+    log.info(
+        "created %s for %s via %s",
+        tracking,
+        payload.created_by,
+        " -> ".join(stop.name for stop in route.stops) or "direct route",
+    )
     return Shipment(**_decorate(created))
 
 

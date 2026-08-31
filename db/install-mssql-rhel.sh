@@ -97,6 +97,9 @@ sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/02-seed.sql"
 log "applying Zava Logistics data migration"
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/04-zava-rebrand.sql"
 
+log "enabling persisted geographic routes"
+sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/05-geographic-routing.sql"
+
 # The db tier has no Python service, so its heartbeat is written once here and
 # refreshed by a lightweight timer -- see db/shipment-db-heartbeat.*
 log "installing the database heartbeat timer"

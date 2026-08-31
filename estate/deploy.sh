@@ -97,6 +97,10 @@ stage_repo() {
 write_env() {
   # write_env <host>  -- render /etc/shipment/shipment.env with real values
   local host="$1"
+  local maps_key=""
+  if [[ "${host}" == "${API_HOST}" ]]; then
+    maps_key="${SHIPMENT_AZURE_MAPS_KEY:-}"
+  fi
   remote "${host}" "sudo install -d -m 0750 /etc/shipment"
   remote "${host}" "sudo tee /etc/shipment/shipment.env >/dev/null" <<ENV
 SHIPMENT_DB_HOST=${DB_HOST}
@@ -114,6 +118,8 @@ SHIPMENT_CREATE_RATE_LIMIT=5
 SHIPMENT_CREATE_RATE_WINDOW=60
 SHIPMENT_CREATE_GLOBAL_LIMIT=240
 SHIPMENT_CORS_ORIGINS=https://dash.99b.org,https://track.99b.org,http://${WEB_HOST}
+SHIPMENT_AZURE_MAPS_KEY=${maps_key}
+SHIPMENT_GEOCODING_TIMEOUT=2
 SHIPMENT_API_URL=http://${API_HOST}:8080
 SHIPMENT_API_TIMEOUT=5
 SHIPMENT_BRAND=Zava Logistics
