@@ -21,7 +21,13 @@ command -v curl >/dev/null || fail "curl is required"
 command -v python3 >/dev/null || fail "python3 is required"
 
 json() { python3 -c 'import json,sys; print(json.dumps(json.load(sys.stdin)))'; }
-field() { python3 -c "import json,sys; d=json.load(sys.stdin); print(eval('d$1'))" 2>/dev/null; }
+field() {
+  local expression="$1"
+  [[ "${expression}" == \[* ]] && expression="d${expression}"
+  python3 -c \
+    'import json,sys; d=json.load(sys.stdin); print(eval(sys.argv[1], {"__builtins__": {}}, {"d": d, "len": len}))' \
+    "${expression}" 2>/dev/null
+}
 
 # ------------------------------------------------------------------ web tier --
 info "web tier at ${WEB}"

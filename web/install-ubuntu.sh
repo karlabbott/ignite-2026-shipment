@@ -36,6 +36,7 @@ open_firewall_port 443
 restart_unit shipment-web.service
 report_identity web
 
+HOST_IP="$(hostname -I | awk '{print $1}')"
 log "Web tier installed."
-log "Dashboard: http://\$(hostname -I | awk '{print \$1}')/"
-log "Tracking:  http://\$(hostname -I | awk '{print \$1}')/track"
+log "Dashboard: http://${HOST_IP}/"
+log "Tracking:  http://${HOST_IP}/track"
