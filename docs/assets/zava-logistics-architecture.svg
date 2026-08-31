@@ -1,0 +1,120 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Zava Logistics mixed-Linux application architecture</title>
+  <desc id="desc">A four-tier shipment application on Hyper-V using Ubuntu, SUSE, Red Hat Enterprise Linux, and Rocky Linux from CIQ Plus.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0a0a0a"/>
+    </marker>
+    <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0089ad"/>
+    </marker>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#18212a" flood-opacity=".12"/>
+    </filter>
+    <style>
+      .sans { font-family: "Segoe UI", Arial, sans-serif; }
+      .mono { font-family: "Cascadia Mono", Consolas, monospace; }
+      .small { font-size: 18px; fill: #65707b; }
+      .label { font-size: 17px; font-weight: 700; letter-spacing: 2.2px; fill: #65707b; }
+      .title { font-size: 46px; font-weight: 800; fill: #090a0b; }
+      .tier { font-size: 28px; font-weight: 800; fill: #090a0b; }
+      .host { font-size: 18px; fill: #65707b; }
+      .flow { fill: none; stroke: #0a0a0a; stroke-width: 3; marker-end: url(#arrow); }
+      .data { fill: none; stroke: #0089ad; stroke-width: 3; marker-end: url(#arrow-blue); }
+      .heartbeat { fill: none; stroke: #0089ad; stroke-width: 2.5; stroke-dasharray: 8 8; marker-end: url(#arrow-blue); }
+      .card { fill: #fff; stroke: #d4d8dd; stroke-width: 2; filter: url(#shadow); }
+    </style>
+  </defs>
+
+  <rect width="1600" height="900" fill="#eef0f3"/>
+  <rect width="1600" height="12" fill="#27c2df"/>
+
+  <!-- Zava lockup -->
+  <circle cx="78" cy="72" r="34" fill="#000"/>
+  <text x="78" y="84" text-anchor="middle" class="sans" font-size="48" font-weight="800" fill="#fff">Z</text>
+  <path d="M105 46 H187 Q201 46 201 60 V84 Q201 98 187 98 H105" fill="#fff" stroke="#000" stroke-width="3"/>
+  <text x="151" y="84" text-anchor="middle" class="sans" font-size="42" font-weight="800" fill="#000">ava</text>
+  <text x="230" y="81" class="sans" font-size="18" font-weight="800" letter-spacing="4" fill="#090a0b">LOGISTICS</text>
+
+  <text x="64" y="164" class="sans title">A real application across four Linux distributions</text>
+  <text x="64" y="201" class="sans small">Shipment creation, API orchestration, a SQL-backed queue, worker processing, and live estate identity</text>
+
+  <!-- Audience -->
+  <rect x="64" y="300" width="220" height="220" rx="8" class="card"/>
+  <circle cx="174" cy="363" r="35" fill="#090a0b"/>
+  <circle cx="174" cy="349" r="12" fill="#fff"/>
+  <path d="M145 397 Q174 367 203 397" fill="none" stroke="#fff" stroke-width="10" stroke-linecap="round"/>
+  <text x="174" y="443" text-anchor="middle" class="sans tier">Audience</text>
+  <text x="174" y="476" text-anchor="middle" class="sans host">Dashboard + tracking</text>
+  <text x="174" y="496" text-anchor="middle" class="mono" font-size="15" fill="#65707b">dash.99b.org</text>
+  <text x="174" y="516" text-anchor="middle" class="mono" font-size="15" fill="#65707b">track.99b.org</text>
+
+  <!-- Hyper-V boundary -->
+  <rect x="350" y="255" width="1186" height="548" rx="12" fill="#f7f8f9" stroke="#aeb5bd" stroke-width="2"/>
+  <rect x="350" y="255" width="1186" height="54" rx="12" fill="#090a0b"/>
+  <rect x="350" y="285" width="1186" height="24" fill="#090a0b"/>
+  <text x="382" y="291" class="sans" font-size="21" font-weight="800" letter-spacing="2.5" fill="#fff">HYPER-V ESTATE</text>
+  <text x="1504" y="291" text-anchor="end" class="mono" font-size="18" fill="#c7cbd0">192.168.90.0/24</text>
+
+  <!-- Web -->
+  <rect x="400" y="353" width="245" height="190" rx="6" class="card"/>
+  <circle cx="447" cy="399" r="26" fill="#f4f5f7"/>
+  <circle cx="447" cy="399" r="15" fill="none" stroke="#E95420" stroke-width="7" stroke-dasharray="9 5"/>
+  <text x="488" y="390" class="sans label">WEB</text>
+  <text x="488" y="421" class="sans tier">Ubuntu</text>
+  <text x="424" y="466" class="mono host">ubuntu-web · :80</text>
+  <text x="424" y="501" class="sans small">nginx + FastAPI</text>
+
+  <!-- API -->
+  <rect x="710" y="353" width="245" height="190" rx="6" class="card"/>
+  <circle cx="757" cy="399" r="26" fill="#f4f5f7"/>
+  <path d="M739 402 q11-20 31-7 q10 7 2 15 q-6 6-13 0 q4 0 5-4 q-4-7-13 1 q-8 7-16 2z" fill="#0C322C"/>
+  <text x="798" y="390" class="sans label">API</text>
+  <text x="798" y="421" class="sans tier">SUSE</text>
+  <text x="734" y="466" class="mono host">sles-api · :8080</text>
+  <text x="734" y="501" class="sans small">FastAPI business API</text>
+
+  <!-- DB -->
+  <rect x="1020" y="353" width="245" height="190" rx="6" class="card"/>
+  <circle cx="1067" cy="399" r="26" fill="#f4f5f7"/>
+  <path d="M1050 401 q6-18 20-18 q11 0 15 12 q10 4 7 13 q-4 10-19 8 q-25 0-23-15z" fill="#EE0000"/>
+  <text x="1108" y="390" class="sans label">DATABASE</text>
+  <text x="1108" y="421" class="sans tier">RHEL</text>
+  <text x="1044" y="466" class="mono host">rhel-db · :1433</text>
+  <text x="1044" y="501" class="sans small">SQL Server 2025 + queue</text>
+
+  <!-- Worker -->
+  <rect x="1278" y="580" width="220" height="175" rx="6" class="card"/>
+  <circle cx="1325" cy="626" r="26" fill="#f4f5f7"/>
+  <circle cx="1325" cy="626" r="16" fill="#10B981"/>
+  <path d="M1315 634 l10-16 l11 16 l-11-8z" fill="#fff"/>
+  <text x="1366" y="617" class="sans label">WORKER</text>
+  <text x="1366" y="648" class="sans tier">RLC+</text>
+  <text x="1302" y="693" class="mono host">rocky-worker</text>
+  <text x="1302" y="728" class="sans small">Claims queue + scans</text>
+
+  <!-- Flows -->
+  <path d="M284 410 H385" class="flow"/>
+  <text x="334" y="394" text-anchor="middle" class="sans small">HTTPS</text>
+
+  <path d="M645 430 H695" class="flow"/>
+  <text x="670" y="414" text-anchor="middle" class="sans small">JSON</text>
+
+  <path d="M955 430 H1005" class="data"/>
+  <text x="980" y="414" text-anchor="middle" class="sans small">SQL</text>
+
+  <path d="M1388 580 V530 H1282" class="data"/>
+  <path d="M1282 530 H1265" class="data"/>
+  <text x="1370" y="550" text-anchor="end" class="sans small">claim + update</text>
+
+  <!-- Heartbeats -->
+  <path d="M522 543 V770 H1142 V558" class="heartbeat"/>
+  <path d="M832 543 V770" class="heartbeat"/>
+  <path d="M1388 755 V790 H1142 V558" class="heartbeat"/>
+  <text x="760" y="791" text-anchor="middle" class="sans small">tier heartbeats and identity</text>
+
+  <!-- Footer -->
+  <line x1="64" y1="848" x2="1536" y2="848" stroke="#0089ad" stroke-width="1"/>
+  <text x="64" y="878" class="sans label">KEEP THE LINUX YOU CHOSE. MOVE IT TO AZURE. BUILD WHAT COMES NEXT.</text>
+  <text x="1536" y="878" text-anchor="end" class="sans small">Zava Logistics · Ignite 2026</text>
+</svg>

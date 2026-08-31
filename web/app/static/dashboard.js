@@ -50,9 +50,9 @@ function renderEstate(payload) {
     ].filter(Boolean).join(" ");
 
     const size = tile.vm_size ? `<span class="chip">${escapeHTML(tile.vm_size)}</span>` : "";
-    const seen = tile.last_seen
-      ? `<span class="chip">${escapeHTML(relativeTime(tile.last_seen))}</span>`
-      : "";
+    const seen = tile.healthy === false
+      ? `<span class="chip down"${tile.last_seen ? ` title="Last heartbeat ${escapeHTML(relativeTime(tile.last_seen))}"` : ""}>Heartbeat stale</span>`
+      : `<span class="chip live"${tile.last_seen ? ` title="Last heartbeat ${escapeHTML(relativeTime(tile.last_seen))}"` : ' title="This tier served the current request"'}><span class="live-dot"></span>Live</span>`;
 
     return `
       <div class="${classes}" data-tier="${tier}">
@@ -103,7 +103,7 @@ function renderBoard(rows) {
     const done = row.status === "DELIVERED" ? " done" : "";
     return `
       <tr class="${changed ? "changed" : ""}">
-        <td class="mono">${escapeHTML(row.tracking_number)}</td>
+        <td><a class="tracking-link mono" href="/track?n=${encodeURIComponent(row.tracking_number)}">${escapeHTML(row.tracking_number)}</a></td>
         <td>${escapeHTML(row.carrier_code)}</td>
         <td>${escapeHTML(row.origin)} &rarr; ${escapeHTML(row.destination)}</td>
         <td class="status status-${escapeHTML(row.status)}">${escapeHTML(row.status_narrative)}</td>
