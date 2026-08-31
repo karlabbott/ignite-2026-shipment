@@ -1,6 +1,10 @@
 /* NinetyNine Freight — schema for SQL Server 2025 on RHEL.
    Idempotent: safe to run repeatedly against rhel-db. */
 
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
 IF DB_ID('shipping') IS NULL
     CREATE DATABASE shipping;
 GO

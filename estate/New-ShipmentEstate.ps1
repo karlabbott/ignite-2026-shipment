@@ -69,11 +69,10 @@ $Estate = @(
         Tier       = 'db'
         Ip         = '192.168.90.11'
         Cpu        = 4
-        # 4 GB lets Anaconda install on a 32 GB demo laptop with other work
-        # open. Dynamic memory can grow the database to 12 GB once the estate
-        # is deployed and the host has room.
+        # SQL Server 2025 refuses setup if Hyper-V balloons the guest below
+        # 2 GB, so keep a 4 GB floor and allow growth to 12 GB under load.
         MemoryGB   = 4
-        MinMemGB   = 2
+        MinMemGB   = 4
         MaxMemGB   = 12
         DiskGB     = 90
         Source     = 'iso'

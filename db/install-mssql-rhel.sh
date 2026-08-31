@@ -47,12 +47,12 @@ curl -fsSL "https://packages.microsoft.com/config/rhel/${MAJOR}/prod.repo" \
 
 log "installing SQL Server and command line tools"
 dnf -y install mssql-server
-ACCEPT_EULA=Y dnf -y install mssql-tools18 unixODBC-devel
+ACCEPT_EULA=Y dnf -y install mssql-tools18
 
 export PATH="${PATH}:/opt/mssql-tools18/bin"
 
 # ------------------------------------------------------------------ configure
-if [[ ! -f /var/opt/mssql/mssql.conf ]] || ! grep -q '\[sqlagent\]' /var/opt/mssql/mssql.conf 2>/dev/null; then
+if [[ ! -f /var/opt/mssql/data/master.mdf ]]; then
   log "running initial SQL Server setup (edition: ${MSSQL_EDITION})"
   MSSQL_SA_PASSWORD="${SA_PASSWORD}" MSSQL_PID="${MSSQL_EDITION}" ACCEPT_EULA=Y \
     /opt/mssql/bin/mssql-conf -n setup accept-eula
@@ -88,48 +88,8 @@ log "creating application login ${APP_USER}"
 # The app login gets exactly the rights it needs: read/write on the data tables
 # and execute on the two helper procedures. No db_owner.
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b \
-  -v appuser="${APP_USER}" apppass="${APP_PASSWORD}" dbname="${DB_NAME}" <<'SQL'
-:setvar QUOTED_IDENTIFIER ON
-DECLARE @user SYSNAME = N'$(appuser)';
-DECLARE @pass NVARCHAR(128) = N'$(apppass)';
-DECLARE @sql NVARCHAR(MAX);
-
-IF NOT EXISTS (SELECT 1 FROM sys.sql_logins WHERE name = @user)
-BEGIN
-    SET @sql = N'CREATE LOGIN ' + QUOTENAME(@user) +
-               N' WITH PASSWORD = N''' + REPLACE(@pass, '''', '''''') +
-               N''', CHECK_POLICY = ON;';
-    EXEC sp_executesql @sql;
-END
-ELSE
-BEGIN
-    SET @sql = N'ALTER LOGIN ' + QUOTENAME(@user) +
-               N' WITH PASSWORD = N''' + REPLACE(@pass, '''', '''''') + N''';';
-    EXEC sp_executesql @sql;
-END
-GO
-
-USE [$(dbname)];
-GO
-DECLARE @user SYSNAME = N'$(appuser)';
-DECLARE @sql NVARCHAR(MAX);
-
-IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = @user)
-BEGIN
-    SET @sql = N'CREATE USER ' + QUOTENAME(@user) + N' FOR LOGIN ' + QUOTENAME(@user) + N';';
-    EXEC sp_executesql @sql;
-END
-
-SET @sql = N'ALTER ROLE db_datareader ADD MEMBER ' + QUOTENAME(@user) + N';';
-EXEC sp_executesql @sql;
-SET @sql = N'ALTER ROLE db_datawriter ADD MEMBER ' + QUOTENAME(@user) + N';';
-EXEC sp_executesql @sql;
-SET @sql = N'GRANT EXECUTE ON dbo.usp_record_heartbeat TO ' + QUOTENAME(@user) + N';';
-EXEC sp_executesql @sql;
-SET @sql = N'GRANT EXECUTE ON dbo.usp_claim_scan TO ' + QUOTENAME(@user) + N';';
-EXEC sp_executesql @sql;
-GO
-SQL
+  -v appuser="${APP_USER}" apppass="${APP_PASSWORD}" dbname="${DB_NAME}" \
+  -i "${ROOT}/db/03-app-login.sql"
 
 log "seeding demo data"
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/02-seed.sql"
@@ -141,10 +101,8 @@ install -m 0700 "${ROOT}/db/heartbeat.sh" /usr/local/sbin/shipment-db-heartbeat
 install -m 0644 "${ROOT}/db/shipment-db-heartbeat.service" /etc/systemd/system/
 install -m 0644 "${ROOT}/db/shipment-db-heartbeat.timer" /etc/systemd/system/
 install -d -m 0750 /etc/shipment
-if [[ ! -f /etc/shipment/db-heartbeat.env ]]; then
-  printf 'SA_PASSWORD=%s\n' "${SA_PASSWORD}" > /etc/shipment/db-heartbeat.env
-  chmod 0600 /etc/shipment/db-heartbeat.env
-fi
+printf 'SA_PASSWORD=%s\n' "${SA_PASSWORD}" > /etc/shipment/db-heartbeat.env
+chmod 0600 /etc/shipment/db-heartbeat.env
 systemctl daemon-reload
 systemctl enable --now shipment-db-heartbeat.timer
 
