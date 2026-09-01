@@ -1,1 +1,1 @@
-"""Zava Logistics worker tier — runs on rocky-worker (Rocky Linux)."""
+"""Zava Logistics worker tier — runs on ciq-rocky-worker (Rocky Linux from CIQ)."""

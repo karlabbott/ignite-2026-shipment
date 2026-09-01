@@ -48,16 +48,19 @@ import json
 import sys
 
 payload = json.load(sys.stdin)
-tiers = {tile["tier"]: tile for tile in payload.get("tiers", [])}
+tiers = {}
+for tile in payload.get("tiers", []):
+    tiers.setdefault(tile["tier"], []).append(tile)
 missing = [tier for tier in ("web", "api", "db", "worker") if tier not in tiers]
 if missing:
     print("  missing tiers: {}".format(", ".join(missing)), file=sys.stderr)
     raise SystemExit(1)
-for name, tile in tiers.items():
-    state = "ok" if tile.get("healthy", True) else "STALE"
-    print("  {:<7} {:<18} {:<8} {}  {}".format(
-        name, tile["hostname"], tile["platform"], state, tile["distro"]
-    ))
+for name, instances in tiers.items():
+    for tile in instances:
+        state = "ok" if tile.get("healthy", True) else "STALE"
+        print("  {:<7} {:<22} {:<8} {}  {}".format(
+            name, tile["hostname"], tile["platform"], state, tile["distro"]
+        ))
 ' || fail "one or more tiers are not reporting"
 pass "all four tiers are reporting"
 
@@ -66,6 +69,20 @@ info "board and stats"
 curl -fsS -m "${TIMEOUT}" "${WEB}/api/stats" | json >/dev/null || fail "/api/stats failed"
 curl -fsS -m "${TIMEOUT}" "${WEB}/api/board" | json >/dev/null || fail "/api/board failed"
 pass "board and stats render"
+
+info "audience poll surface"
+POLL="$(curl -fsS -m "${TIMEOUT}" "${WEB}/api/poll")" || fail "/api/poll failed"
+printf '%s' "${POLL}" | python3 -c '
+import json
+import sys
+poll = json.load(sys.stdin)
+assert poll["state"] in {"closed", "open", "locked", "injected", "recovered"}
+assert [choice["code"] for choice in poll["choices"]] == [
+    "silence_worker", "cut_db_route", "crush_demand"
+]
+' || fail "poll payload is invalid"
+curl -fsS -m "${TIMEOUT}" "${WEB}/vote" >/dev/null || fail "/vote failed"
+pass "poll API and audience page render"
 
 # -------------------------------------------------------- create and follow --
 info "creating a shipment end to end"

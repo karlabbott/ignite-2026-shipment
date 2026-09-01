@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}{{ brand }} — Choose the failure{% endblock %}
+{% block body_class %}vote{% endblock %}
+
+{% block content %}
+  <section class="vote-shell">
+    <span class="metric-kicker">Microsoft Ignite 2026</span>
+    <h1>You pick how to break it</h1>
+    <p class="lede">Choose the condition GitHub Copilot must diagnose and recover.</p>
+    <div id="vote-choices" class="vote-choices" aria-live="polite"></div>
+    <p id="vote-status" class="vote-status">Waiting for the poll to open.</p>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/vote.js?v=20260901-3"></script>
+{% endblock %}

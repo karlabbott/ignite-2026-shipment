@@ -117,7 +117,7 @@ GO
    grey on screen within one poll interval. */
 IF OBJECT_ID('dbo.tier_heartbeats', 'U') IS NULL
 CREATE TABLE dbo.tier_heartbeats (
-    tier        VARCHAR(16)  NOT NULL PRIMARY KEY,
+    tier        VARCHAR(16)  NOT NULL,
     hostname    NVARCHAR(64) NOT NULL,
     distro      NVARCHAR(96) NOT NULL,
     kernel      NVARCHAR(64) NOT NULL,
@@ -125,7 +125,8 @@ CREATE TABLE dbo.tier_heartbeats (
     location    NVARCHAR(48) NOT NULL,
     vm_size     NVARCHAR(48) NULL,
     detail      NVARCHAR(200) NULL,
-    last_seen   DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME()
+    last_seen   DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
+    CONSTRAINT pk_tier_heartbeats PRIMARY KEY (tier, hostname)
 );
 GO
 
@@ -143,8 +144,9 @@ AS
 BEGIN
     SET NOCOUNT ON;
     MERGE dbo.tier_heartbeats AS target
-    USING (SELECT @tier AS tier) AS source
+    USING (SELECT @tier AS tier, @hostname AS hostname) AS source
         ON target.tier = source.tier
+       AND target.hostname = source.hostname
     WHEN MATCHED THEN UPDATE SET
         hostname = @hostname, distro = @distro, kernel = @kernel,
         platform = @platform, location = @location, vm_size = @vm_size,

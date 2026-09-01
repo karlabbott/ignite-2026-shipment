@@ -61,7 +61,7 @@ declare -A TIERS=(
   ["${DB_HOST}"]="rhel-db"
   ["${API_HOST}"]="sles-api"
   ["${WEB_HOST}"]="ubuntu-web"
-  ["${WORKER_HOST}"]="rocky-worker"
+  ["${WORKER_HOST}"]="ciq-rocky-worker"
 )
 for host in "${!TIERS[@]}"; do
   if remote "${host}" 'true' 2>/dev/null; then
@@ -98,8 +98,12 @@ write_env() {
   # write_env <host>  -- render /etc/shipment/shipment.env with real values
   local host="$1"
   local maps_key=""
+  local loadgen_key=""
+  local presenter_key=""
   if [[ "${host}" == "${API_HOST}" ]]; then
     maps_key="${SHIPMENT_AZURE_MAPS_KEY:-}"
+    loadgen_key="${SHIPMENT_LOADGEN_KEY:-}"
+    presenter_key="${SHIPMENT_PRESENTER_KEY:-}"
   fi
   remote "${host}" "sudo install -d -m 0750 /etc/shipment"
   remote "${host}" "sudo tee /etc/shipment/shipment.env >/dev/null" <<ENV
@@ -117,6 +121,8 @@ SHIPMENT_BOARD_LIMIT=60
 SHIPMENT_CREATE_RATE_LIMIT=5
 SHIPMENT_CREATE_RATE_WINDOW=60
 SHIPMENT_CREATE_GLOBAL_LIMIT=240
+SHIPMENT_LOADGEN_KEY=${loadgen_key}
+SHIPMENT_PRESENTER_KEY=${presenter_key}
 SHIPMENT_CORS_ORIGINS=https://dash.99b.org,https://track.99b.org,http://${WEB_HOST}
 SHIPMENT_AZURE_MAPS_KEY=${maps_key}
 SHIPMENT_GEOCODING_TIMEOUT=2
@@ -127,6 +133,7 @@ SHIPMENT_BRAND=Zava Logistics
 # tracking address from the request and shows http://${WEB_HOST}/track.
 # Set this to https://track.99b.org only once the estate is in Azure.
 SHIPMENT_TRACK_URL=
+SHIPMENT_RETURN_URL=https://dash.99b.org
 SHIPMENT_REFRESH_MS=3000
 SHIPMENT_POLL_SECONDS=1
 SHIPMENT_MAX_IDLE_SECONDS=5
@@ -165,7 +172,7 @@ remote "${API_HOST}" "cd ${STAGE} && sudo bash api/install-sles.sh"
 ok "API tier installed"
 
 # -------------------------------------------------------------- 3. worker ----
-log "[3/4] worker tier -> rocky-worker (${WORKER_HOST})"
+log "[3/4] worker tier -> ciq-rocky-worker (${WORKER_HOST})"
 stage_repo "${WORKER_HOST}"
 write_env "${WORKER_HOST}"
 remote "${WORKER_HOST}" "cd ${STAGE} && sudo bash worker/install-rocky.sh"

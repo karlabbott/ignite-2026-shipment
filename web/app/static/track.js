@@ -5,9 +5,34 @@ const resultCard = document.getElementById("result-card");
 const createForm = document.getElementById("create-form");
 const createButton = document.getElementById("create-button");
 const lookupForm = document.getElementById("lookup-form");
+const itemPreset = document.getElementById("item-preset");
+const customItem = document.getElementById("custom-item");
+const customItemLabel = document.getElementById("custom-item-label");
 
 let tracking = null;
 let pollTimer = null;
+let previousStatus = null;
+
+function clientToken() {
+  const key = "zava-audience-client";
+  let token = localStorage.getItem(key);
+  if (!token) {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    token = Array.from(bytes, (value) => value.toString(16).padStart(2, "0")).join("");
+    localStorage.setItem(key, token);
+  }
+  return token;
+}
+
+function updateCustomItem() {
+  const custom = itemPreset.value === "__custom__";
+  customItemLabel.classList.toggle("hidden", !custom);
+  customItem.required = custom;
+  if (custom) customItem.focus();
+}
+
+itemPreset.addEventListener("change", updateCustomItem);
 
 function showResult(number) {
   tracking = number;
@@ -33,6 +58,11 @@ function renderShipment(data) {
     `${data.origin} → ${data.destination}`;
   document.getElementById("result-carrier").textContent =
     `${data.carrier_name} (${data.carrier_code})`;
+  window.ZavaMap.renderRoute(
+    document.getElementById("route-map"),
+    data.route_points || [],
+    data.progress_percent,
+  );
 
   const scans = data.scans || [];
   if (scans.length) {
@@ -50,6 +80,16 @@ function renderShipment(data) {
           </span>
         </li>`).join("")
     : `<li class="hint">No scans yet — the worker tier picks this up within a few seconds.</li>`;
+
+  const deliveryMoment = document.getElementById("delivery-moment");
+  const delivered = data.status === "DELIVERED";
+  deliveryMoment.classList.toggle("visible", delivered);
+  if (delivered && previousStatus && previousStatus !== "DELIVERED") {
+    deliveryMoment.classList.remove("celebrate");
+    void deliveryMoment.offsetWidth;
+    deliveryMoment.classList.add("celebrate");
+  }
+  previousStatus = data.status;
 }
 
 async function poll() {
@@ -72,10 +112,13 @@ createForm.addEventListener("submit", async (event) => {
   clearBanner();
 
   const form = new FormData(createForm);
+  const description = form.get("item_preset") === "__custom__"
+    ? form.get("custom_item")
+    : form.get("item_preset");
   const body = {
     origin: form.get("origin"),
     destination: form.get("destination"),
-    description: form.get("description") || "General freight",
+    description: description || "General freight",
     weight_kg: Number(form.get("weight_kg")) || 1,
     created_by: form.get("created_by") || "attendee",
   };
@@ -83,7 +126,10 @@ createForm.addEventListener("submit", async (event) => {
   try {
     const created = await getJSON("/api/shipments", {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        "x-zava-client-token": clientToken(),
+      },
       body: JSON.stringify(body),
     });
     showResult(created.tracking_number);
@@ -107,6 +153,7 @@ lookupForm.addEventListener("submit", (event) => {
 document.getElementById("another-button").addEventListener("click", () => {
   if (pollTimer) clearInterval(pollTimer);
   tracking = null;
+  previousStatus = null;
   resultCard.classList.add("hidden");
   createCard.classList.remove("hidden");
   history.replaceState(null, "", "/track");

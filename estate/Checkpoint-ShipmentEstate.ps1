@@ -27,7 +27,7 @@ param(
     [Parameter(ParameterSetName = 'List', Mandatory = $true)]
     [switch] $List,
 
-    [string[]] $VMs = @('rhel-db', 'sles-api', 'ubuntu-web', 'rocky-worker'),
+    [string[]] $VMs = @('rhel-db', 'sles-api', 'ubuntu-web', 'ciq-rocky-worker'),
 
     [switch] $StartAfterRestore
 )
@@ -102,7 +102,7 @@ switch ($PSCmdlet.ParameterSetName) {
             # Database first: the API and worker tiers come up healthier if
             # SQL Server is already accepting connections.
             Write-Step 'Starting the estate (database first)'
-            foreach ($name in @('rhel-db', 'sles-api', 'rocky-worker', 'ubuntu-web')) {
+            foreach ($name in @('rhel-db', 'sles-api', 'ciq-rocky-worker', 'ubuntu-web')) {
                 $vm = $present | Where-Object Name -eq $name
                 if (-not $vm) { continue }
                 if ($PSCmdlet.ShouldProcess($name, 'Start')) {

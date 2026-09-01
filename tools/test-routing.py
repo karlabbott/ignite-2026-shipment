@@ -29,12 +29,16 @@ assert springfield.source == "offline-geonames"
 unknown = plan_route("Somewhere beyond the map", "Another imaginary place")
 assert unknown.stops == ()
 assert unknown.source == "legacy-fallback"
+assert unknown.origin is None
+assert unknown.destination is None
 
 local = plan_route("Seattle, WA", "Tacoma, WA")
 assert [stop.name for stop in local.stops] == [
     "Seattle, WA Sort Center",
     "Tacoma, WA Distribution Center",
 ]
+assert local.origin is not None
+assert local.destination is not None
 
 online_geocoder = routing._azure_maps_geocode
 try:

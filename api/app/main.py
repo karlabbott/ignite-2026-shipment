@@ -32,6 +32,9 @@ from .config import settings
 from .db import Database, DatabaseUnavailable
 from .models import (
     BoardRow,
+    FailurePollState,
+    FailureVote,
+    RoutePoint,
     ScanEvent,
     Shipment,
     ShipmentCreate,
@@ -101,6 +104,7 @@ limiter = RateLimiter(
     settings.create_rate_window,
     settings.create_global_limit,
 )
+vote_limiter = RateLimiter(2000, 60, 5000)
 
 
 # --------------------------------------------------------------------------- #
@@ -185,6 +189,42 @@ def client_ip(request: Request) -> str:
     return request.client.host if request.client else "unknown"
 
 
+def client_identity(request: Request) -> str:
+    token = request.headers.get("x-zava-client-token", "")
+    if (
+        16 <= len(token) <= 64
+        and all(char.isalnum() or char in "_-" for char in token)
+    ):
+        return f"browser:{token}"
+    return f"ip:{client_ip(request)}"
+
+
+def trusted_load_generator(request: Request) -> bool:
+    supplied = request.headers.get("x-zava-loadgen-key", "")
+    return bool(
+        settings.loadgen_key
+        and supplied
+        and secrets.compare_digest(supplied, settings.loadgen_key)
+    )
+
+
+def trusted_presenter(request: Request) -> bool:
+    supplied = request.headers.get("x-zava-presenter-key", "")
+    return bool(
+        settings.presenter_key
+        and supplied
+        and secrets.compare_digest(supplied, settings.presenter_key)
+    )
+
+
+def require_presenter(request: Request) -> None:
+    if not trusted_presenter(request):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Presenter key required",
+        )
+
+
 def require_db() -> Database:
     return database
 
@@ -252,7 +292,8 @@ def get_estate(db: Database = Depends(require_db)) -> list[TierHealth]:
                    DATEDIFF(second, last_seen, SYSUTCDATETIME()) AS age_seconds
               FROM dbo.tier_heartbeats
              ORDER BY CASE tier WHEN 'web' THEN 1 WHEN 'api' THEN 2
-                                WHEN 'db'  THEN 3 WHEN 'worker' THEN 4 ELSE 5 END
+                                WHEN 'db'  THEN 3 WHEN 'worker' THEN 4 ELSE 5 END,
+                      hostname
             """
         )
     except DatabaseUnavailable as exc:
@@ -346,9 +387,10 @@ def create_shipment(
     This is the endpoint the audience hits from the QR code, so it is rate
     limited and every string has already been length-capped by pydantic.
     """
-    allowed, reason = limiter.check(client_ip(request))
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
+    if not trusted_load_generator(request):
+        allowed, reason = limiter.check(client_identity(request))
+        if not allowed:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
 
     route = plan_route(
         payload.origin,
@@ -381,9 +423,12 @@ def create_shipment(
                     """
                     INSERT INTO dbo.shipments
                         (tracking_number, carrier_id, origin, destination,
-                         description, weight_kg, status, created_by)
+                         description, weight_kg, status, created_by,
+                         origin_latitude, origin_longitude,
+                         destination_latitude, destination_longitude)
                     OUTPUT inserted.shipment_id
-                    VALUES (%s, %s, %s, %s, %s, %s, 'CREATED', %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, 'CREATED', %s,
+                            %s, %s, %s, %s)
                     """,
                     (
                         tracking,
@@ -393,6 +438,10 @@ def create_shipment(
                         payload.description,
                         payload.weight_kg,
                         payload.created_by,
+                        route.origin.latitude if route.origin else None,
+                        route.origin.longitude if route.origin else None,
+                        route.destination.latitude if route.destination else None,
+                        route.destination.longitude if route.destination else None,
                     ),
                 )
             except DatabaseUnavailable:
@@ -441,6 +490,10 @@ def create_shipment(
                 tracking,
                 exc,
             )
+        try:
+            db.query_one("EXEC dbo.usp_assign_golden_if_none %s", (shipment_id,))
+        except DatabaseUnavailable as exc:
+            log.warning("created %s without spotlight assignment: %s", tracking, exc)
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc
 
@@ -463,6 +516,44 @@ SELECT s.tracking_number, c.code AS carrier_code, c.name AS carrier_name,
   JOIN dbo.carriers  c ON c.carrier_id = s.carrier_id
  WHERE s.tracking_number = %s
 """
+
+
+def _route_points(db: Database, tracking: str) -> list[RoutePoint]:
+    rows = db.query(
+        """
+        SELECT point_sequence, point_kind, location, latitude, longitude
+          FROM (
+                SELECT 0 AS point_sequence, 'origin' AS point_kind,
+                       s.origin AS location, s.origin_latitude AS latitude,
+                       s.origin_longitude AS longitude
+                  FROM dbo.shipments AS s
+                 WHERE s.tracking_number = %s
+                UNION ALL
+                SELECT r.stop_sequence, 'hub', r.location, r.latitude, r.longitude
+                  FROM dbo.shipment_route_stops AS r
+                  JOIN dbo.shipments AS s ON s.shipment_id = r.shipment_id
+                 WHERE s.tracking_number = %s
+                UNION ALL
+                SELECT 3, 'destination', s.destination,
+                       s.destination_latitude, s.destination_longitude
+                  FROM dbo.shipments AS s
+                 WHERE s.tracking_number = %s
+               ) AS points
+         WHERE latitude IS NOT NULL AND longitude IS NOT NULL
+         ORDER BY point_sequence
+        """,
+        (tracking, tracking, tracking),
+    )
+    return [
+        RoutePoint(
+            sequence=row["point_sequence"],
+            kind=row["point_kind"],
+            location=row["location"],
+            latitude=float(row["latitude"]),
+            longitude=float(row["longitude"]),
+        )
+        for row in rows
+    ]
 
 
 @app.get(
@@ -497,13 +588,316 @@ def get_shipment(tracking: str, db: Database = Depends(require_db)) -> ShipmentD
             """,
             (tracking,),
         )
+        route_points = _route_points(db, tracking)
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc
 
     detail = _decorate(row)
     detail["scans"] = [ScanEvent(**scan) for scan in scans]
     detail["history"] = [StatusChange(**change) for change in history]
+    detail["route_points"] = route_points
     return ShipmentDetail(**detail)
+
+
+@app.get("/api/presentation", tags=["shipments"])
+def presentation_data(
+    limit: int = 30,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    """Recent geocoded routes plus the stable shipment used as the demo thread."""
+    limit = min(max(limit, 1), 60)
+    try:
+        rows = db.query(
+            """
+            WITH recent AS (
+                SELECT TOP (%d)
+                       shipment_id, tracking_number, origin, destination, status,
+                       created_by, created_at, updated_at, is_golden,
+                       demo_hold_status,
+                       origin_latitude, origin_longitude,
+                       destination_latitude, destination_longitude
+                  FROM dbo.shipments
+                 WHERE origin_latitude IS NOT NULL
+                   AND destination_latitude IS NOT NULL
+                 ORDER BY created_at DESC, shipment_id DESC
+            ),
+            selected AS (
+                SELECT * FROM recent
+                UNION
+                SELECT shipment_id, tracking_number, origin, destination, status,
+                       created_by, created_at, updated_at, is_golden,
+                       demo_hold_status,
+                       origin_latitude, origin_longitude,
+                       destination_latitude, destination_longitude
+                  FROM dbo.shipments
+                 WHERE is_golden = 1
+                   AND origin_latitude IS NOT NULL
+                   AND destination_latitude IS NOT NULL
+            )
+            SELECT selected.*, r.stop_sequence, r.location AS stop_location,
+                   r.latitude AS stop_latitude, r.longitude AS stop_longitude
+              FROM selected
+              LEFT JOIN dbo.shipment_route_stops AS r
+                ON r.shipment_id = selected.shipment_id
+             ORDER BY selected.created_at DESC, selected.shipment_id DESC,
+                      r.stop_sequence
+            """ % limit
+        )
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+    shipments: list[dict[str, Any]] = []
+    by_id: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        shipment_id = row["shipment_id"]
+        shipment = by_id.get(shipment_id)
+        if shipment is None:
+            shipment = {
+                "tracking_number": row["tracking_number"],
+                "origin": row["origin"],
+                "destination": row["destination"],
+                "status": row["status"],
+                "status_narrative": pipeline.narrative_for(row["status"]),
+                "progress_percent": pipeline.progress_percent(row["status"]),
+                "created_by": row["created_by"],
+                "created_at": row["created_at"],
+                "updated_at": row["updated_at"],
+                "is_golden": bool(row["is_golden"]),
+                "hold_status": row["demo_hold_status"],
+                "is_held": row["demo_hold_status"] == row["status"],
+                "_destination_latitude": float(row["destination_latitude"]),
+                "_destination_longitude": float(row["destination_longitude"]),
+                "route_points": [
+                    {
+                        "sequence": 0,
+                        "kind": "origin",
+                        "location": row["origin"],
+                        "latitude": float(row["origin_latitude"]),
+                        "longitude": float(row["origin_longitude"]),
+                    }
+                ],
+            }
+            by_id[shipment_id] = shipment
+            shipments.append(shipment)
+
+        if row["stop_sequence"] is not None:
+            shipment["route_points"].append(
+                {
+                    "sequence": row["stop_sequence"],
+                    "kind": "hub",
+                    "location": row["stop_location"],
+                    "latitude": float(row["stop_latitude"]),
+                    "longitude": float(row["stop_longitude"]),
+                }
+            )
+
+    for shipment in shipments:
+        shipment["route_points"].append(
+            {
+                "sequence": 3,
+                "kind": "destination",
+                "location": shipment["destination"],
+                "latitude": shipment.pop("_destination_latitude"),
+                "longitude": shipment.pop("_destination_longitude"),
+            }
+        )
+        shipment["route_points"].sort(key=lambda point: point["sequence"])
+
+    golden = next((shipment for shipment in shipments if shipment["is_golden"]), None)
+    return {"golden": golden, "shipments": shipments}
+
+
+FAILURE_CHOICES = (
+    ("silence_worker", "Silence a worker"),
+    ("cut_db_route", "Cut the database route"),
+    ("crush_demand", "Crush it with demand"),
+)
+
+
+def _failure_poll(db: Database, poll_id: int | None = None) -> dict[str, Any]:
+    where = "WHERE p.poll_id = %s" if poll_id is not None else "WHERE p.state <> 'closed'"
+    params = (poll_id,) if poll_id is not None else ()
+    row = db.query_one(
+        f"""
+        SELECT TOP (1) p.poll_id, p.state, p.winner_code, p.opened_at,
+               p.locked_at, p.injected_at, p.recovered_at, p.closed_at
+          FROM dbo.failure_polls p
+          {where}
+         ORDER BY p.poll_id DESC
+        """,
+        params,
+    )
+    if row is None:
+        return {
+            "poll_id": None,
+            "state": "closed",
+            "winner_code": None,
+            "total_votes": 0,
+            "choices": [
+                {"code": code, "label": label, "votes": 0}
+                for code, label in FAILURE_CHOICES
+            ],
+        }
+
+    counts = {
+        item["choice_code"]: item["vote_count"]
+        for item in db.query(
+            """
+            SELECT choice_code, COUNT(*) AS vote_count
+              FROM dbo.failure_votes
+             WHERE poll_id = %s
+             GROUP BY choice_code
+            """,
+            (row["poll_id"],),
+        )
+    }
+    choices = [
+        {"code": code, "label": label, "votes": counts.get(code, 0)}
+        for code, label in FAILURE_CHOICES
+    ]
+    row["choices"] = choices
+    row["total_votes"] = sum(choice["votes"] for choice in choices)
+    return row
+
+
+def _public_failure_poll(poll: dict[str, Any]) -> dict[str, Any]:
+    if poll["state"] != "open":
+        return poll
+    public = dict(poll)
+    public["winner_code"] = None
+    public["choices"] = [
+        {"code": choice["code"], "label": choice["label"]}
+        for choice in poll["choices"]
+    ]
+    return public
+
+
+@app.get("/api/poll", tags=["audience"])
+def current_failure_poll(db: Database = Depends(require_db)) -> dict[str, Any]:
+    try:
+        return _public_failure_poll(_failure_poll(db))
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/poll/vote", tags=["audience"])
+def cast_failure_vote(
+    vote: FailureVote,
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    allowed, _ = vote_limiter.check(f"browser:{vote.voter_token}")
+    if not allowed:
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="Voting is at capacity. Try again shortly.",
+        )
+    try:
+        result = db.query_one(
+            "EXEC dbo.usp_cast_failure_vote %s, %s, %s",
+            (vote.poll_id, vote.voter_token, vote.choice_code),
+        )
+        if not result or not result["accepted"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Voting is not open for this poll",
+            )
+        return _public_failure_poll(_failure_poll(db, vote.poll_id))
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presenter/polls", tags=["presenter"])
+def open_failure_poll(
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        result = db.query_one("EXEC dbo.usp_open_failure_poll")
+        return _failure_poll(db, result["poll_id"])
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.get("/api/presenter/polls/{poll_id}", tags=["presenter"])
+def presenter_failure_poll(
+    poll_id: int,
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        poll = _failure_poll(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+    if poll["poll_id"] is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Poll not found")
+    return poll
+
+
+@app.post("/api/presenter/polls/{poll_id}/lock", tags=["presenter"])
+def lock_failure_poll(
+    poll_id: int,
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        result = db.query_one("EXEC dbo.usp_lock_failure_poll %s", (poll_id,))
+        if not result or not result["locked"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Poll is not open",
+            )
+        return _failure_poll(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presenter/polls/{poll_id}/state", tags=["presenter"])
+def set_failure_poll_state(
+    poll_id: int,
+    change: FailurePollState,
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        result = db.query_one(
+            "EXEC dbo.usp_set_failure_poll_state %s, %s",
+            (poll_id, change.state),
+        )
+        if not result or not result["updated"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Invalid poll state transition",
+            )
+        return _failure_poll(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presentation/golden/release", tags=["shipments"])
+def release_golden_shipment(
+    request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    """Release the held continuity shipment after the Azure endpoint returns."""
+    if not trusted_load_generator(request):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Presenter key required")
+    try:
+        db.execute("EXEC dbo.usp_release_golden_shipment")
+        row = db.query_one(
+            "SELECT tracking_number, status FROM dbo.shipments WHERE is_golden = 1"
+        )
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+    return {
+        "released": True,
+        "tracking_number": row["tracking_number"] if row else None,
+        "status": row["status"] if row else None,
+    }
 
 
 @app.post("/api/shipments/{tracking}/advance", tags=["shipments"])
@@ -519,13 +913,18 @@ def advance_shipment(
     is alive by watching shipments move.
     """
     tracking = tracking.strip().upper()[:20]
-    allowed, reason = limiter.check(client_ip(request))
-    if not allowed:
-        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
+    if not trusted_load_generator(request):
+        allowed, reason = limiter.check(client_identity(request))
+        if not allowed:
+            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
 
     try:
         row = db.query_one(
-            "SELECT shipment_id, status FROM dbo.shipments WHERE tracking_number = %s",
+            """
+            SELECT shipment_id, status, demo_hold_status
+              FROM dbo.shipments
+             WHERE tracking_number = %s
+            """,
             (tracking,),
         )
         if row is None:
@@ -537,6 +936,11 @@ def advance_shipment(
                 "status": row["status"],
                 "message": "Shipment already delivered",
             }
+        if row["demo_hold_status"] == row["status"]:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This presentation shipment is held until migration completes",
+            )
         db.execute(
             "INSERT INTO dbo.scan_queue (shipment_id, requested_by) VALUES (%s, %s)",
             (row["shipment_id"], f"api:{client_ip(request)}"),

@@ -7,13 +7,15 @@ Linux estate from on-premises Hyper-V to Azure.
 The application exists so that a migration is **visible** rather than described:
 each tier reports which host, which distro and which platform served the request,
 so the dashboard flips from "Hyper-V" to "Azure" tier-by-tier as cutover proceeds.
+The audience failure poll migrates with the same SQL-backed application state;
+it records votes and exposes the locked winner but cannot inject a fault.
 
 | Tier   | Host           | Distro | Runs                                          |
 |--------|----------------|--------|-----------------------------------------------|
 | db     | `rhel-db`      | RHEL   | SQL Server 2025 on Linux — schema + work queue |
 | api    | `sles-api`     | SLES   | FastAPI / uvicorn — all business logic         |
 | web    | `ubuntu-web`   | Ubuntu | nginx + FastAPI — dashboard, public tracking   |
-| worker | `rocky-worker` | Rocky  | Queue consumer, scan generator, telemetry      |
+| worker | `ciq-rocky-worker` | Rocky Linux from CIQ | Queue consumer, scan generator, telemetry |
 
 ## Addressing: IPs first, DNS later
 
@@ -55,6 +57,9 @@ Every architectural choice serves the demo, not enterprise purity.
    intermediate hubs when the shipment is created, so the worker never teleports
    freight through random cities or depends on geocoding while processing it.
 5. **The relational model remains deliberately small and explainable.**
+6. **Voting is state, not authority.** `/vote` and the dashboard tally persist in
+   SQL Server. Presenter-key endpoints can open and lock a poll, while a separate
+   private controller owns fault injection, rollback, and infrastructure access.
 
 ## Layout
 
@@ -80,7 +85,7 @@ Defaults assume the Hyper-V internal switch `192.168.90.0/24`:
 | rhel-db      | 192.168.90.11 |
 | sles-api     | 192.168.90.12 |
 | ubuntu-web   | 192.168.90.13 |
-| rocky-worker | 192.168.90.14 |
+| ciq-rocky-worker | 192.168.90.14 |
 
 Everything is overridable via `/etc/shipment/shipment.env`, which is the only file
 that changes when the estate lands in Azure with new addresses. Start from
@@ -91,10 +96,10 @@ that changes when the estate lands in Azure with new addresses. Start from
 ```bash
 sudo ./db/install-mssql-rhel.sh        # on rhel-db
 sudo ./api/install-sles.sh             # on sles-api
-sudo depot login -u <org> -t <token>   # on rocky-worker
+sudo depot login -u <org> -t <token>   # on ciq-rocky-worker
 sudo depot enable rlc-plus-10.2         # enables the matching online repos
 sudo ./web/install-ubuntu.sh            # on ubuntu-web
-sudo ./worker/install-rocky.sh         # on rocky-worker
+sudo ./worker/install-rocky.sh         # on ciq-rocky-worker
 ./tools/smoke-test.sh                  # from anywhere on the lab subnet
 ```
 

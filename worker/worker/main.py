@@ -37,6 +37,8 @@ log = logging.getLogger("shipment.worker")
 database = Database(settings)
 identity = estate.identify(settings.tier)
 shutdown = threading.Event()
+DEMO_HELD = "DEMO_HELD"
+RETRY_TRANSITION = "RETRY_TRANSITION"
 
 
 # --------------------------------------------------------------------------- #
@@ -66,19 +68,18 @@ def _location_for(status: str, shipment: dict[str, Any]) -> str:
 # --------------------------------------------------------------------------- #
 # Core transition
 # --------------------------------------------------------------------------- #
-def advance_one(shipment_id: int, requested_by: str) -> str | None:
+def advance_one(queue_id: int, shipment_id: int, requested_by: str) -> str | None:
     """Move a single shipment one step. Returns the new status, or None.
 
-    Everything is written in one round trip per statement against an autocommit
-    connection. There is no transaction spanning the three writes on purpose: if
-    the database disappears mid-step the worst case is a scan without a status
-    change, which self-heals on the next pass and is far easier to explain than a
-    stuck open transaction during a live demo.
+    The final scan, history, shipment status, and queue completion are committed
+    by one stored procedure. Its expected-status guard lets multiple workers
+    process queued advances for the same shipment without collapsing two
+    requested advances into one transition.
     """
     row = database.query_one(
         """
         SELECT s.shipment_id, s.tracking_number, s.status, s.origin, s.destination,
-               c.hub_city AS carrier_hub,
+               c.hub_city AS carrier_hub, s.demo_hold_status,
                (SELECT location FROM dbo.shipment_route_stops
                  WHERE shipment_id = s.shipment_id AND stop_sequence = 1) AS route_stop_1,
                (SELECT location FROM dbo.shipment_route_stops
@@ -94,38 +95,38 @@ def advance_one(shipment_id: int, requested_by: str) -> str | None:
         return None
 
     current = row["status"]
+    if row["demo_hold_status"] == current:
+        log.info("%s held at %s for the presentation", row["tracking_number"], current)
+        return DEMO_HELD
+
     following = pipeline.next_status(current)
     if following is None:
         log.debug("%s already terminal (%s)", row["tracking_number"], current)
         return None
 
     location = _location_for(following, row)
-    database.execute(
-        """
-        INSERT INTO dbo.scan_events
-            (shipment_id, scan_type, location, notes, worker_host, worker_site)
-        VALUES (%s, %s, %s, %s, %s, %s)
-        """,
+    outcome = database.query_one(
+        "EXEC dbo.usp_complete_scan %s, %s, %s, %s, %s, %s, %s, %s, %s",
         (
+            queue_id,
             shipment_id,
-            pipeline.scan_type_for(following),
-            location,
-            pipeline.narrative_for(following),
             identity.hostname,
+            current,
+            following,
+            location,
+            pipeline.scan_type_for(following),
+            pipeline.narrative_for(following),
             identity.location,
         ),
     )
-    database.execute(
-        """
-        INSERT INTO dbo.status_history (shipment_id, from_status, to_status, changed_by)
-        VALUES (%s, %s, %s, %s)
-        """,
-        (shipment_id, current, following, f"worker:{identity.hostname}"),
-    )
-    database.execute(
-        "UPDATE dbo.shipments SET status = %s, updated_at = SYSUTCDATETIME() WHERE shipment_id = %s",
-        (following, shipment_id),
-    )
+    if not outcome or not outcome["applied"]:
+        reason = outcome["reason"] if outcome else "no_result"
+        if reason == "held":
+            return DEMO_HELD
+        if reason == "status_changed":
+            return RETRY_TRANSITION
+        log.warning("queue %s was not applied: %s", queue_id, reason)
+        return None
     log.info(
         "%s %s -> %s at %s (requested by %s)",
         row["tracking_number"], current, following, location, requested_by,
@@ -159,11 +160,18 @@ def claim_loop() -> None:
             # teleporting every shipment to DELIVERED the instant it is created.
             shutdown.wait(random.uniform(*settings.scan_delay_range))
             try:
-                advance_one(item["shipment_id"], item["requested_by"])
-                database.execute(
-                    "UPDATE dbo.scan_queue SET processed_at = SYSUTCDATETIME() WHERE queue_id = %s",
-                    (item["queue_id"],),
+                result = advance_one(
+                    item["queue_id"], item["shipment_id"], item["requested_by"]
                 )
+                if result == DEMO_HELD:
+                    continue
+                if result == RETRY_TRANSITION:
+                    continue
+                if result is None:
+                    database.execute(
+                        "UPDATE dbo.scan_queue SET processed_at = SYSUTCDATETIME() WHERE queue_id = %s",
+                        (item["queue_id"],),
+                    )
             except DatabaseUnavailable as exc:
                 log.warning("lost the database mid-scan, will retry: %s", exc)
                 break
@@ -195,6 +203,7 @@ def drift_loop() -> None:
                 SELECT TOP (%d) s.shipment_id
                   FROM dbo.shipments s
                  WHERE s.status <> 'DELIVERED'
+                   AND (s.demo_hold_status IS NULL OR s.status <> s.demo_hold_status)
                    AND s.updated_at < DATEADD(second, -%d, SYSUTCDATETIME())
                    AND NOT EXISTS (SELECT 1 FROM dbo.scan_queue q
                                     WHERE q.shipment_id = s.shipment_id

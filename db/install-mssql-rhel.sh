@@ -100,6 +100,12 @@ sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/04-zava-rebra
 log "enabling persisted geographic routes"
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/05-geographic-routing.sql"
 
+log "enabling presentation visualization data"
+sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/06-presentation-visuals.sql"
+
+log "enabling multi-worker identity and audience voting"
+sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/07-agentic-demo.sql"
+
 # The db tier has no Python service, so its heartbeat is written once here and
 # refreshed by a lightweight timer -- see db/shipment-db-heartbeat.*
 log "installing the database heartbeat timer"

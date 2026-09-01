@@ -55,6 +55,9 @@ class WebSettings(BaseSettings):
     # SHIPMENT_TRACK_URL in /etc/shipment/shipment.env to pin the public name.
     # That single line is the visible "we have real DNS now" moment.
     public_track_url: str = field(default_factory=lambda: _env("SHIPMENT_TRACK_URL", ""))
+    return_url: str = field(
+        default_factory=lambda: _env("SHIPMENT_RETURN_URL", "https://dash.99b.org").rstrip("/")
+    )
     refresh_ms: int = field(default_factory=lambda: _env_int("SHIPMENT_REFRESH_MS", 3000))
 
 

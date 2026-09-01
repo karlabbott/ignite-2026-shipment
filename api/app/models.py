@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -52,6 +53,14 @@ class StatusChange(BaseModel):
     changed_at: datetime
 
 
+class RoutePoint(BaseModel):
+    sequence: int
+    kind: str
+    location: str
+    latitude: float
+    longitude: float
+
+
 class Shipment(BaseModel):
     tracking_number: str
     carrier_code: str
@@ -71,6 +80,7 @@ class Shipment(BaseModel):
 class ShipmentDetail(Shipment):
     scans: list[ScanEvent] = Field(default_factory=list)
     history: list[StatusChange] = Field(default_factory=list)
+    route_points: list[RoutePoint] = Field(default_factory=list)
 
 
 class BoardRow(BaseModel):
@@ -99,6 +109,19 @@ class TierHealth(BaseModel):
     detail: str | None = None
     last_seen: datetime | None = None
     healthy: bool = True
+
+
+FailureChoice = Literal["silence_worker", "cut_db_route", "crush_demand"]
+
+
+class FailureVote(BaseModel):
+    poll_id: int = Field(gt=0)
+    voter_token: str = Field(min_length=16, max_length=64, pattern=r"^[A-Za-z0-9_-]+$")
+    choice_code: FailureChoice
+
+
+class FailurePollState(BaseModel):
+    state: Literal["injected", "recovered", "closed"]
 
 
 class Stats(BaseModel):

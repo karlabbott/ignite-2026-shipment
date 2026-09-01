@@ -1,0 +1,10 @@
+<svg role="img" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <title>Azure Linux</title>
+  <defs>
+    <linearGradient id="a" x1="8" y1="56" x2="55" y2="8" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0078D4"/>
+      <stop offset="1" stop-color="#27C2DF"/>
+    </linearGradient>
+  </defs>
+  <path fill="url(#a)" d="M28 5h14L24 53H8L28 5Zm15 13 13 35H35l-7-12h17l-8-23h6Z"/>
+</svg>

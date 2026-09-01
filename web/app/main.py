@@ -120,11 +120,27 @@ async def call_api(
     """Call the API tier and normalise every failure into a JSON-able payload."""
     assert client is not None
     headers: dict[str, str] = {}
-    if forward_from is not None and forward_from.client:
+    if forward_from is not None:
         # Preserve the real client address so the API tier's rate limiter sees
         # attendees rather than a single nginx source.
         existing = forward_from.headers.get("x-forwarded-for")
-        headers["x-forwarded-for"] = existing or forward_from.client.host
+        if existing or forward_from.client:
+            # nginx appends the socket peer to any incoming X-Forwarded-For
+            # chain. Trust only that final address, not a caller-supplied prefix.
+            headers["x-forwarded-for"] = (
+                existing.split(",")[-1].strip()
+                if existing
+                else forward_from.client.host
+            )
+        loadgen_key = forward_from.headers.get("x-zava-loadgen-key")
+        if loadgen_key:
+            headers["x-zava-loadgen-key"] = loadgen_key
+        presenter_key = forward_from.headers.get("x-zava-presenter-key")
+        if presenter_key:
+            headers["x-zava-presenter-key"] = presenter_key
+        client_token = forward_from.headers.get("x-zava-client-token")
+        if client_token:
+            headers["x-zava-client-token"] = client_token
 
     try:
         response = await client.request(
@@ -190,6 +206,7 @@ async def dashboard(request: Request) -> HTMLResponse:
         {
             "brand": settings.brand,
             "track_url": _track_url(request),
+            "return_url": settings.return_url,
             "refresh_ms": settings.refresh_ms,
         },
     )
@@ -203,6 +220,18 @@ async def track_page(request: Request, n: str = "") -> HTMLResponse:
         {
             "brand": settings.brand,
             "prefill": n.strip().upper()[:20],
+            "refresh_ms": settings.refresh_ms,
+        },
+    )
+
+
+@app.get("/vote", response_class=HTMLResponse, include_in_schema=False)
+async def vote_page(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "vote.html",
+        {
+            "brand": settings.brand,
             "refresh_ms": settings.refresh_ms,
         },
     )
@@ -275,6 +304,81 @@ async def board(limit: int = 0) -> JSONResponse:
 @app.get("/api/stats", tags=["shipments"])
 async def stats() -> JSONResponse:
     code, payload = await call_api("GET", "/api/stats")
+    return JSONResponse(payload, status_code=code)
+
+
+@app.get("/api/presentation", tags=["shipments"])
+async def presentation(limit: int = 30) -> JSONResponse:
+    code, payload = await call_api(
+        "GET",
+        "/api/presentation",
+        params={"limit": min(max(limit, 1), 60)},
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presentation/golden/release", tags=["shipments"])
+async def release_golden(request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "POST", "/api/presentation/golden/release", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.get("/api/poll", tags=["audience"])
+async def current_poll() -> JSONResponse:
+    code, payload = await call_api("GET", "/api/poll")
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/poll/vote", tags=["audience"])
+async def vote(request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Expected a JSON body") from None
+    code, payload = await call_api(
+        "POST", "/api/poll/vote", json_body=body, forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presenter/polls", tags=["presenter"])
+async def open_poll(request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "POST", "/api/presenter/polls", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.get("/api/presenter/polls/{poll_id}", tags=["presenter"])
+async def presenter_poll(poll_id: int, request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "GET", f"/api/presenter/polls/{poll_id}", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presenter/polls/{poll_id}/lock", tags=["presenter"])
+async def lock_poll(poll_id: int, request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "POST", f"/api/presenter/polls/{poll_id}/lock", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presenter/polls/{poll_id}/state", tags=["presenter"])
+async def update_poll_state(poll_id: int, request: Request) -> JSONResponse:
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Expected a JSON body") from None
+    code, payload = await call_api(
+        "POST",
+        f"/api/presenter/polls/{poll_id}/state",
+        json_body=body,
+        forward_from=request,
+    )
     return JSONResponse(payload, status_code=code)
 
 

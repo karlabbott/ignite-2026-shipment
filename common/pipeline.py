@@ -42,7 +42,7 @@ SCAN_TYPE_FOR_STATUS: dict[str, str] = {
 NARRATIVE_FOR_STATUS: dict[str, str] = {
     CREATED: "Label created, awaiting collection",
     PICKED_UP: "Collected from shipper",
-    IN_TRANSIT: "In transit on the line haul",
+    IN_TRANSIT: "In transit",
     AT_HUB: "Arrived at a regional hub",
     OUT_FOR_DELIVERY: "Out for delivery",
     DELIVERED: "Delivered",

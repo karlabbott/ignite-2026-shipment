@@ -10,6 +10,22 @@
 {% endblock %}
 
 {% block content %}
+  <section id="unavailable-page" class="unavailable-page hidden" aria-live="assertive">
+    <div class="unavailable-mark">Z</div>
+    <span class="metric-kicker">Zava Logistics</span>
+    <h1>Network temporarily unavailable</h1>
+    <p>Shipment records and queued work remain safely retained.</p>
+    <div class="reconnecting"><i></i><span>Reconnecting</span></div>
+  </section>
+
+  <nav class="view-switcher" aria-label="Dashboard view">
+    <button class="view-button active" data-view="operations" type="button">Operations</button>
+    <button class="view-button" data-view="network" type="button">Network</button>
+  </nav>
+
+  <section id="golden-spotlight" class="golden-spotlight hidden" aria-label="Golden shipment"></section>
+
+  <div id="operations-view" class="dashboard-view">
   <!-- The health strip is the most important element on this page. It is the
        thing that visibly changes from Hyper-V to Azure during the migration. -->
   <section class="strip" aria-label="Estate health">
@@ -23,6 +39,19 @@
     <div class="counter"><span id="stat-delivered" class="value">–</span><span class="label">Delivered</span></div>
     <div class="counter"><span id="stat-queue" class="value">–</span><span class="label">Queue depth</span></div>
     <div class="counter"><span id="stat-scans" class="value">–</span><span class="label">Scans / 5 min</span></div>
+  </section>
+
+  <section class="metric-visuals" aria-label="Queue and throughput trends">
+    <article class="metric-chart">
+      <div><span class="metric-kicker">Pressure</span><h3>Queue depth</h3></div>
+      <strong id="queue-current">0</strong>
+      <svg id="queue-chart" viewBox="0 0 500 120" role="img" aria-label="Recent queue depth"></svg>
+    </article>
+    <article class="metric-chart">
+      <div><span class="metric-kicker">Velocity</span><h3>Scans / 5 min</h3></div>
+      <strong id="throughput-current">0</strong>
+      <svg id="throughput-chart" viewBox="0 0 500 120" role="img" aria-label="Recent scan throughput"></svg>
+    </article>
   </section>
 
   <section class="board" aria-label="Shipment board">
@@ -42,8 +71,45 @@
       <tbody id="board"></tbody>
     </table>
   </section>
+  </div>
+
+  <div id="network-view" class="dashboard-view hidden">
+    <section class="network-grid">
+      <article class="network-card topology-card">
+        <div class="network-heading">
+          <div><span class="metric-kicker">Live application flow</span><h2>Estate topology</h2></div>
+          <span class="topology-legend"><i></i> Requests and queue work</span>
+        </div>
+        <div id="topology-stage" class="topology-stage">
+          <div class="topology-zone hyperv-zone"><span>Hyper-V</span></div>
+          <div class="topology-zone azure-zone"><span>Azure</span></div>
+          <svg id="topology-lines" viewBox="0 0 1000 420" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div id="topology-nodes"></div>
+        </div>
+      </article>
+
+      <article class="network-card globe-card">
+        <div class="network-heading">
+          <div><span class="metric-kicker">Audience activity</span><h2>Shipment network</h2></div>
+          <span id="globe-count" class="network-count">0 routes</span>
+        </div>
+        <svg id="audience-globe" class="world-map audience-globe" viewBox="0 0 1000 500"
+             role="img" aria-label="Recent audience shipment routes"></svg>
+      </article>
+
+      <article id="failure-poll-card" class="network-card poll-card">
+        <div class="network-heading">
+          <div><span class="metric-kicker">Audience decision</span><h2>You pick how to break it</h2></div>
+          <span id="poll-state" class="network-count">Poll closed</span>
+        </div>
+        <div id="poll-tally" class="poll-tally"></div>
+      </article>
+    </section>
+  </div>
 {% endblock %}
 
 {% block scripts %}
-  <script src="/static/dashboard.js"></script>
+  <script>window.RETURN_URL = {{ return_url | tojson }};</script>
+  <script src="/static/map.js?v=20260831-4"></script>
+  <script src="/static/dashboard.js?v=20260901-3"></script>
 {% endblock %}

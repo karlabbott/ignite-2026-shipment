@@ -42,6 +42,28 @@ UPDATE dbo.carriers
    SET name = N'Zava Logistics'
  WHERE code = 'ZAV';
 
+DECLARE @pbs_carrier_id INT =
+    (SELECT carrier_id FROM dbo.carriers WHERE code = 'PBS');
+DECLARE @psx_carrier_id INT =
+    (SELECT carrier_id FROM dbo.carriers WHERE code = 'PSX');
+
+IF @pbs_carrier_id IS NOT NULL
+BEGIN
+    IF @psx_carrier_id IS NULL
+        UPDATE dbo.carriers
+           SET code = 'PSX'
+         WHERE carrier_id = @pbs_carrier_id;
+    ELSE
+    BEGIN
+        UPDATE dbo.shipments
+           SET carrier_id = @psx_carrier_id
+         WHERE carrier_id = @pbs_carrier_id;
+
+        DELETE FROM dbo.carriers
+         WHERE carrier_id = @pbs_carrier_id;
+    END;
+END;
+
 IF EXISTS (
     SELECT 1
       FROM dbo.shipments AS old_number
@@ -78,6 +100,23 @@ UPDATE dbo.scan_queue
 UPDATE dbo.tier_heartbeats
    SET hostname = REPLACE(hostname, N'.99b.local', N'')
  WHERE hostname LIKE N'%.99b.local%';
+
+UPDATE dbo.scan_events
+   SET worker_host = N'ciq-rocky-worker'
+ WHERE worker_host = N'rocky-worker';
+
+UPDATE dbo.status_history
+   SET changed_by = N'worker:ciq-rocky-worker'
+ WHERE changed_by = N'worker:rocky-worker';
+
+UPDATE dbo.scan_queue
+   SET claimed_by = N'ciq-rocky-worker'
+ WHERE claimed_by = N'rocky-worker';
+
+UPDATE dbo.tier_heartbeats
+   SET hostname = N'ciq-rocky-worker'
+ WHERE tier = 'worker'
+   AND hostname = N'rocky-worker';
 
 COMMIT TRANSACTION;
 GO

@@ -109,7 +109,7 @@ $Estate = @(
         BootNote   = 'Add boot arg: autoinstall'
     }
     [pscustomobject]@{
-        Name       = 'rocky-worker'
+        Name       = 'ciq-rocky-worker'
         Tier       = 'worker'
         Ip         = '192.168.90.14'
         Cpu        = 2
@@ -307,7 +307,7 @@ Write-Host @"
          Start-VM -Name rhel-db ; vmconnect.exe localhost rhel-db
 
      rhel-db      zero touch - Anaconda finds the OEMDRV answer ISO
-     rocky-worker at the normal CIQ Install entry press 'e', append
+     ciq-rocky-worker at the normal CIQ Install entry press 'e', append
                   'inst.ks=hd:LABEL=OEMDRV:/ks.cfg' to the linuxefi line
                   after the vendor's inst.ks arguments, then press Ctrl-X
      ubuntu-web   at the GRUB menu press 'e', append 'autoinstall' to the

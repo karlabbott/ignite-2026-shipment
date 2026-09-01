@@ -34,6 +34,8 @@ class Location:
 
 @dataclass(frozen=True)
 class RoutePlan:
+    origin: Location | None
+    destination: Location | None
     stops: tuple[Location, ...]
     source: str
 
@@ -164,6 +166,7 @@ def _azure_maps_geocode(query: str, key: str, timeout_seconds: float) -> Locatio
             "api-version": "1.0",
             "query": query,
             "limit": 1,
+            "entityType": "Municipality",
             "subscription-key": key,
         }
     )
@@ -275,7 +278,12 @@ def plan_route(
     origin = _resolve(origin_name, azure_maps_key, timeout_seconds)
     destination = _resolve(destination_name, azure_maps_key, timeout_seconds)
     if origin is None or destination is None:
-        return RoutePlan(stops=(), source="legacy-fallback")
+        return RoutePlan(
+            origin=origin,
+            destination=destination,
+            stops=(),
+            source="legacy-fallback",
+        )
 
     sources = {origin.source, destination.source}
     source = sources.pop() if len(sources) == 1 else "hybrid"
@@ -305,4 +313,9 @@ def plan_route(
                 "synthetic-terminal",
             ),
         )
-    return RoutePlan(stops=hubs, source=source)
+    return RoutePlan(
+        origin=origin,
+        destination=destination,
+        stops=hubs,
+        source=source,
+    )

@@ -8,7 +8,7 @@ MERGE dbo.carriers AS target
 USING (VALUES
     ('ZAV', N'Zava Logistics',       N'Seattle'),
     ('CAS', N'Cascade Logistics',    N'Portland'),
-    ('PBS', N'Puget Sound Express',  N'Tacoma'),
+    ('PSX', N'Puget Sound Express',  N'Tacoma'),
     ('RNR', N'Rainier Overland',     N'Spokane')
 ) AS source (code, name, hub_city)
 ON target.code = source.code
