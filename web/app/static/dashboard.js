@@ -286,14 +286,51 @@ function renderPoll(poll) {
   const card = document.getElementById("failure-poll-card");
   const tally = document.getElementById("poll-tally");
   const state = document.getElementById("poll-state");
-  if (!card || !tally || !state) return;
+  const displayToggle = document.getElementById("poll-display-toggle");
+  const stageStatus = document.getElementById("poll-stage-status");
+  const stageLabel = document.getElementById("poll-stage-label");
+  const stageDetail = document.getElementById("poll-stage-detail");
+  if (!card || !tally || !state || !displayToggle || !stageStatus || !stageLabel || !stageDetail) return;
+
+  card.classList.remove("state-open", "state-locked", "state-injected", "state-recovered");
   card.classList.toggle("active", Boolean(poll && poll.poll_id));
   if (!poll || !poll.poll_id) {
+    card.classList.remove("minimized");
     state.textContent = "Poll closed";
+    displayToggle.classList.add("hidden");
+    displayToggle.textContent = "Minimize";
+    displayToggle.setAttribute("aria-expanded", "true");
+    stageStatus.classList.add("hidden");
     tally.innerHTML = `<p class="poll-empty">Voting opens during the final live demonstration.</p>`;
     return;
   }
-  state.textContent = `${poll.state} · ${poll.total_votes} vote${poll.total_votes === 1 ? "" : "s"}`;
+
+  const winner = poll.choices.find((choice) => choice.code === poll.winner_code);
+  const lifecycle = {
+    open: {
+      label: "VOTING OPEN",
+      detail: "Results stay hidden until voting closes",
+    },
+    locked: {
+      label: "VOTING LOCKED",
+      detail: winner ? `${winner.label} selected` : "Audience decision locked",
+    },
+    injected: {
+      label: "FAULT INJECTED",
+      detail: winner ? winner.label : "Audience-selected failure active",
+    },
+    recovered: {
+      label: "SERVICE RECOVERED",
+      detail: "Business SLO restored and verified",
+    },
+  }[poll.state];
+
+  card.classList.add(`state-${poll.state}`);
+  displayToggle.classList.remove("hidden");
+  stageStatus.classList.remove("hidden");
+  stageLabel.textContent = lifecycle ? lifecycle.label : poll.state.toUpperCase();
+  stageDetail.textContent = lifecycle ? lifecycle.detail : "";
+  state.textContent = `${lifecycle ? lifecycle.label : poll.state.toUpperCase()} · ${poll.total_votes} vote${poll.total_votes === 1 ? "" : "s"}`;
   if (poll.state === "open") {
     tally.innerHTML = poll.choices.map((choice) => `
       <div class="poll-result concealed">
@@ -373,4 +410,11 @@ async function refresh() {
 
 refresh();
 setView(new URLSearchParams(window.location.search).get("view") === "network" ? "network" : "operations");
+document.getElementById("poll-display-toggle").addEventListener("click", () => {
+  const card = document.getElementById("failure-poll-card");
+  const button = document.getElementById("poll-display-toggle");
+  const minimized = card.classList.toggle("minimized");
+  button.textContent = minimized ? "Show poll" : "Minimize";
+  button.setAttribute("aria-expanded", String(!minimized));
+});
 setInterval(refresh, window.REFRESH_MS || 3000);

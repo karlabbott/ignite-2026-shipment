@@ -100,7 +100,15 @@
       <article id="failure-poll-card" class="network-card poll-card">
         <div class="network-heading">
           <div><span class="metric-kicker">Audience decision</span><h2>You pick how to break it</h2></div>
-          <span id="poll-state" class="network-count">Poll closed</span>
+          <div class="poll-heading-actions">
+            <span id="poll-state" class="network-count">Poll closed</span>
+            <button id="poll-display-toggle" class="poll-display-toggle hidden" type="button"
+                    aria-controls="failure-poll-card" aria-expanded="true">Minimize</button>
+          </div>
+        </div>
+        <div id="poll-stage-status" class="poll-stage-status hidden" role="status" aria-live="polite">
+          <strong id="poll-stage-label"></strong>
+          <span id="poll-stage-detail"></span>
         </div>
         <div id="poll-tally" class="poll-tally"></div>
       </article>
@@ -111,5 +119,5 @@
 {% block scripts %}
   <script>window.RETURN_URL = {{ return_url | tojson }};</script>
   <script src="/static/map.js?v=20260831-4"></script>
-  <script src="/static/dashboard.js?v=20260901-3"></script>
+  <script src="/static/dashboard.js?v=20260903-1"></script>
 {% endblock %}
