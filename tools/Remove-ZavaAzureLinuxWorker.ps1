@@ -32,7 +32,43 @@ if (-not $vm) {
 $nicIds = @($vm.networkProfile.networkInterfaces | ForEach-Object id)
 $diskIds = @($vm.storageProfile.osDisk.managedDisk.id)
 
-$stopCommand = @"
+$workerState = (az vm show `
+    --subscription $SubscriptionId `
+    --resource-group $ResourceGroup `
+    --name $VmName `
+    --show-details `
+    --query powerState `
+    --output tsv `
+    --only-show-errors).Trim()
+if ($LASTEXITCODE -ne 0) {
+    throw "Unable to inspect Azure Linux worker '$VmName'."
+}
+
+if ($workerState -eq 'VM running') {
+    $adminState = (az vm show `
+        --subscription $SubscriptionId `
+        --resource-group $ResourceGroup `
+        --name $AdminVm `
+        --show-details `
+        --query powerState `
+        --output tsv `
+        --only-show-errors).Trim()
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to inspect private management VM '$AdminVm'."
+    }
+    if ($adminState -ne 'VM running') {
+        az vm start `
+            --subscription $SubscriptionId `
+            --resource-group $ResourceGroup `
+            --name $AdminVm `
+            --only-show-errors `
+            --output none
+        if ($LASTEXITCODE -ne 0) {
+            throw "Unable to start private management VM '$AdminVm'."
+        }
+    }
+
+    $stopCommand = @"
 set -euo pipefail
 key=/home/estate/.ssh/zava_cutover_mgmt
 ssh_options="-n -i `$key -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10"
@@ -40,14 +76,18 @@ sudo -u estate ssh `$ssh_options estate@$WorkerAddress \
   'sudo systemctl stop shipment-worker.service; sudo sync' || true
 sudo -u estate ssh-keygen -f /home/estate/.ssh/known_hosts -R '$WorkerAddress' >/dev/null 2>&1 || true
 "@
-az vm run-command invoke `
-    --subscription $SubscriptionId `
-    --resource-group $ResourceGroup `
-    --name $AdminVm `
-    --command-id RunShellScript `
-    --scripts $stopCommand `
-    --only-show-errors `
-    --output none
+    az vm run-command invoke `
+        --subscription $SubscriptionId `
+        --resource-group $ResourceGroup `
+        --name $AdminVm `
+        --command-id RunShellScript `
+        --scripts $stopCommand `
+        --only-show-errors `
+        --output none
+    if ($LASTEXITCODE -ne 0) {
+        throw "Unable to stop Azure Linux worker '$VmName' before removal."
+    }
+}
 
 az vm delete `
     --subscription $SubscriptionId `
