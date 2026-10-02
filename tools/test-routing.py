@@ -42,9 +42,13 @@ assert local.destination is not None
 
 antarctica = plan_route("Seattle, WA", "Antartica")
 assert antarctica.destination is not None
-assert antarctica.destination.name == "Ushuaia, Argentina"
-assert antarctica.destination.source == "offline-country-gateway"
-assert antarctica.stops
+assert antarctica.destination.name == "Palmer Station, Antarctica"
+assert antarctica.destination.source == "special-logistics-destination"
+assert [stop.name for stop in antarctica.stops] == [
+    "Santiago, Chile",
+    "Punta Arenas Maritime Terminal, Chile",
+]
+assert antarctica.source == "special-logistics-route"
 
 country = plan_route("Seattle, WA", "France")
 assert country.destination is not None

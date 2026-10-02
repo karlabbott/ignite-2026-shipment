@@ -87,11 +87,26 @@ HUBS: tuple[Location, ...] = tuple(
     )
 )
 
-COUNTRY_GATEWAYS: dict[str, str] = {
-    # Countries and territories without a practical capital need an explicit
-    # logistics gateway rather than a synthetic truck destination.
-    "AQ": "Ushuaia, Argentina",
+COUNTRY_DESTINATIONS: dict[str, Location] = {
+    # Antarctic freight crosses the Drake Passage by research vessel from
+    # Punta Arenas rather than terminating at a synthetic continental city.
+    "AQ": Location(
+        "Palmer Station, Antarctica",
+        -64.7742,
+        -64.0534,
+        "special-logistics-destination",
+    ),
 }
+
+ANTARCTIC_ROUTE: tuple[Location, ...] = (
+    Location("Santiago, Chile", -33.4489, -70.6693, "special-logistics-gateway"),
+    Location(
+        "Punta Arenas Maritime Terminal, Chile",
+        -53.1638,
+        -70.9171,
+        "special-logistics-gateway",
+    ),
+)
 
 
 def _normalise(value: str) -> str:
@@ -191,8 +206,12 @@ def _country_gateway(query: str) -> Location | None:
         return None
 
     country = countries[code]
-    gateway = COUNTRY_GATEWAYS.get(code)
-    if gateway is None and country.get("capital"):
+    destination = COUNTRY_DESTINATIONS.get(code)
+    if destination is not None:
+        return destination
+
+    gateway = None
+    if country.get("capital"):
         gateway = f"{country['capital']}, {country['name']}"
     if gateway is None:
         return None
@@ -336,6 +355,13 @@ def plan_route(
 
     sources = {origin.source, destination.source}
     source = sources.pop() if len(sources) == 1 else "hybrid"
+    if destination.source == "special-logistics-destination":
+        return RoutePlan(
+            origin=origin,
+            destination=destination,
+            stops=ANTARCTIC_ROUTE,
+            source="special-logistics-route",
+        )
     hubs = _select_hubs(origin, destination)
     if not hubs:
         hubs = (
