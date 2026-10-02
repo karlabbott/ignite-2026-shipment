@@ -19,6 +19,15 @@ def names(origin: str, destination: str) -> list[str]:
 seattle_vicksburg = names("Seattle, WA", "Vicksburg, MS")
 assert seattle_vicksburg == ["Denver, CO", "Dallas, TX"], seattle_vicksburg
 
+booger = plan_route("Seattle, WA", "Booger, AR", azure_maps_key="configured")
+assert booger.destination is not None
+assert booger.destination.name == "Booger Hollow, AR"
+assert booger.destination.source == "known-location"
+assert [stop.name for stop in booger.stops] == ["Denver, CO", "Dallas, TX"]
+
+ignite_booger = names("San Francisco, CA", "Booger, Arkansas")
+assert ignite_booger == ["Los Angeles, CA", "Dallas, TX"], ignite_booger
+
 seattle_paris = names("Seattle, WA", "Paris, France")
 assert seattle_paris
 assert seattle_paris[-1] in {"London, UK", "Amsterdam, Netherlands"}, seattle_paris

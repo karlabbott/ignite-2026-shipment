@@ -101,6 +101,33 @@ COUNTRY_DESTINATIONS: dict[str, Location] = {
     ),
 }
 
+KNOWN_TERRESTRIAL_LOCATIONS: dict[str, Location] = {
+    "booger ar": Location(
+        "Booger Hollow, AR",
+        35.4750816,
+        -93.1857311,
+        "known-location",
+    ),
+    "booger arkansas": Location(
+        "Booger Hollow, AR",
+        35.4750816,
+        -93.1857311,
+        "known-location",
+    ),
+    "booger hollow ar": Location(
+        "Booger Hollow, AR",
+        35.4750816,
+        -93.1857311,
+        "known-location",
+    ),
+    "booger hollow arkansas": Location(
+        "Booger Hollow, AR",
+        35.4750816,
+        -93.1857311,
+        "known-location",
+    ),
+}
+
 ANTARCTIC_ROUTE: tuple[Location, ...] = (
     Location("Santiago, Chile", -33.4489, -70.6693, "special-logistics-gateway"),
     Location(
@@ -435,6 +462,9 @@ def _resolve(query: str, azure_maps_key: str, timeout_seconds: float) -> Locatio
     space = _space_location(query)
     if space is not None:
         return space
+    known = KNOWN_TERRESTRIAL_LOCATIONS.get(_normalise(query))
+    if known is not None:
+        return known
     if azure_maps_key:
         try:
             resolved = _azure_maps_geocode(query, azure_maps_key, timeout_seconds)

@@ -7,6 +7,8 @@ param(
     [string] $KeyFile = "$HOME\.zava\loadgen.key"
 )
 
+# This foreground helper runs on the operator host. The sustained stage stream
+# runs as zava-loadgen-24.service on sles-api; see docs/load-generation.md.
 $ErrorActionPreference = 'Stop'
 $generator = Join-Path $PSScriptRoot 'loadgen.py'
 
