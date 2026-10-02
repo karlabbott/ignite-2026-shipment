@@ -55,6 +55,33 @@ assert country.destination is not None
 assert country.destination.name == "Paris, France"
 assert country.destination.source == "offline-country-gateway"
 
+jupiter_neptune = plan_route("Jupiter", "Neptune")
+assert jupiter_neptune.origin is not None
+assert jupiter_neptune.origin.name == "Europa Orbital Logistics Hub, Jupiter System"
+assert jupiter_neptune.destination is not None
+assert jupiter_neptune.destination.name == "Triton Orbital Receiving, Neptune System"
+assert [stop.name for stop in jupiter_neptune.stops] == [
+    "Callisto Deep-Space Freight Terminal, Jupiter System",
+    "Saturn Gravity-Assist Relay",
+]
+assert jupiter_neptune.source == "deep-space-route"
+
+interstellar = plan_route("Seattle, WA", "Kepler-186f")
+assert interstellar.destination is not None
+assert interstellar.destination.name == "Kepler-186f Interstellar Freight Anchorage"
+assert [stop.name for stop in interstellar.stops] == [
+    "Cape Canaveral Orbital Freight Terminal",
+    "Lunar Gateway Cargo Relay",
+]
+assert interstellar.source == "deep-space-route"
+
+galaxy = plan_route("Andromeda Galaxy", "Earth")
+assert galaxy.origin is not None
+assert galaxy.origin.name == "Andromeda Galaxy Deep-Space Receiving Array"
+assert galaxy.destination is not None
+assert galaxy.destination.name == "Low Earth Orbit Cargo Gateway"
+assert galaxy.source == "deep-space-route"
+
 online_geocoder = routing._azure_maps_geocode
 try:
     routing._azure_maps_geocode = lambda *_args, **_kwargs: (_ for _ in ()).throw(

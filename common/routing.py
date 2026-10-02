@@ -1,13 +1,16 @@
-"""Geographically plausible shipment routing.
+"""Plausible terrestrial and deep-space shipment routing.
 
 Azure Maps is the preferred geocoder. A bundled GeoNames city index is the
 demo-safe fallback, so creating and moving shipments never depends on an
-external service being available after the route is planned.
+external service being available after the route is planned. Astronomy-aware
+inputs use named orbital facilities and symbolic map coordinates rather than
+being forced through the terrestrial hub network.
 """
 
 from __future__ import annotations
 
 import difflib
+import hashlib
 import http.client
 import json
 import logging
@@ -108,6 +111,99 @@ ANTARCTIC_ROUTE: tuple[Location, ...] = (
     ),
 )
 
+SPACE_ENDPOINTS: dict[str, Location] = {
+    "sun": Location("Sol Polar Research Anchorage", 68.0, -20.0, "deep-space-destination"),
+    "mercury": Location("Caloris Basin Cargo Lander, Mercury", 32.0, 20.0, "deep-space-destination"),
+    "venus": Location("Aphrodite Terra Aerostat Terminal, Venus", 18.0, 42.0, "deep-space-destination"),
+    "earth": Location("Low Earth Orbit Cargo Gateway", 5.0, -45.0, "deep-space-destination"),
+    "moon": Location("Lunar Gateway Cargo Relay", 2.0, -20.0, "deep-space-destination"),
+    "luna": Location("Lunar Gateway Cargo Relay", 2.0, -20.0, "deep-space-destination"),
+    "mars": Location("Olympus Mons Logistics Base, Mars", 28.0, 66.0, "deep-space-destination"),
+    "phobos": Location("Phobos Orbital Freight Dock, Mars System", 31.0, 72.0, "deep-space-destination"),
+    "deimos": Location("Deimos Navigation Relay, Mars System", 34.0, 78.0, "deep-space-destination"),
+    "jupiter": Location("Europa Orbital Logistics Hub, Jupiter System", 22.0, 104.0, "deep-space-destination"),
+    "io": Location("Io Radiation-Hardened Cargo Relay, Jupiter System", 18.0, 96.0, "deep-space-destination"),
+    "europa": Location("Europa Orbital Logistics Hub, Jupiter System", 22.0, 104.0, "deep-space-destination"),
+    "ganymede": Location("Ganymede Deep-Space Port, Jupiter System", 26.0, 112.0, "deep-space-destination"),
+    "callisto": Location("Callisto Deep-Space Freight Terminal, Jupiter System", 30.0, 120.0, "deep-space-destination"),
+    "saturn": Location("Titan Orbital Freight Terminal, Saturn System", 12.0, 138.0, "deep-space-destination"),
+    "titan": Location("Titan Orbital Freight Terminal, Saturn System", 12.0, 138.0, "deep-space-destination"),
+    "enceladus": Location("Enceladus Research Supply Dock, Saturn System", 8.0, 146.0, "deep-space-destination"),
+    "rhea": Location("Rhea Cargo Relay, Saturn System", 4.0, 152.0, "deep-space-destination"),
+    "iapetus": Location("Iapetus Outer-System Depot, Saturn System", 0.0, 158.0, "deep-space-destination"),
+    "mimas": Location("Mimas Orbital Receiving, Saturn System", -4.0, 150.0, "deep-space-destination"),
+    "dione": Location("Dione Logistics Anchorage, Saturn System", -8.0, 144.0, "deep-space-destination"),
+    "uranus": Location("Titania Deep-Space Receiving, Uranus System", -14.0, 166.0, "deep-space-destination"),
+    "titania": Location("Titania Deep-Space Receiving, Uranus System", -14.0, 166.0, "deep-space-destination"),
+    "neptune": Location("Triton Orbital Receiving, Neptune System", -22.0, 176.0, "deep-space-destination"),
+    "triton": Location("Triton Orbital Receiving, Neptune System", -22.0, 176.0, "deep-space-destination"),
+    "pluto": Location("Charon Transfer Station, Pluto System", -30.0, -174.0, "deep-space-destination"),
+    "charon": Location("Charon Transfer Station, Pluto System", -30.0, -174.0, "deep-space-destination"),
+    "ceres": Location("Ceres Belt Freight Exchange", 38.0, 84.0, "deep-space-destination"),
+    "eris": Location("Eris Autonomous Receiving Array", -38.0, -158.0, "deep-space-destination"),
+    "haumea": Location("Haumea Outer-System Cargo Relay", -34.0, -150.0, "deep-space-destination"),
+    "makemake": Location("Makemake Deep-Space Depot", -42.0, -166.0, "deep-space-destination"),
+}
+
+KNOWN_STELLAR_LOCATIONS = {
+    "alpha centauri",
+    "proxima centauri",
+    "sirius",
+    "betelgeuse",
+    "vega",
+    "rigel",
+    "polaris",
+    "barnards star",
+    "trappist 1",
+    "andromeda",
+    "milky way",
+}
+
+SPACE_TERMS = {
+    "asteroid",
+    "black hole",
+    "comet",
+    "constellation",
+    "deep space",
+    "exoplanet",
+    "galaxy",
+    "moon",
+    "nebula",
+    "orbit",
+    "outer space",
+    "planet",
+    "pulsar",
+    "quasar",
+    "space station",
+    "star",
+    "stellar",
+}
+
+EARTH_ORBIT_ROUTE: tuple[Location, ...] = (
+    Location(
+        "Cape Canaveral Orbital Freight Terminal",
+        28.3922,
+        -80.6077,
+        "deep-space-gateway",
+    ),
+    Location("Lunar Gateway Cargo Relay", 2.0, -20.0, "deep-space-gateway"),
+)
+
+DEEP_SPACE_ROUTE: tuple[Location, ...] = (
+    Location("Heliocentric Cargo Transfer Array", 8.0, 72.0, "deep-space-gateway"),
+    Location("Outer-System Navigation Relay", -4.0, 148.0, "deep-space-gateway"),
+)
+
+JUPITER_TO_NEPTUNE_ROUTE: tuple[Location, ...] = (
+    Location(
+        "Callisto Deep-Space Freight Terminal, Jupiter System",
+        30.0,
+        120.0,
+        "deep-space-gateway",
+    ),
+    Location("Saturn Gravity-Assist Relay", 12.0, 138.0, "deep-space-gateway"),
+)
+
 
 def _normalise(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
@@ -149,6 +245,82 @@ def _country_names() -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
         for value in (code, country["name"], country["iso3"]):
             names[_normalise(value)] = code
     return names, countries
+
+
+def _has_geographic_qualifier(query: str) -> bool:
+    parts = [part.strip() for part in query.split(",") if part.strip()]
+    if len(parts) < 2:
+        return False
+    states, countries = _qualifier_codes()
+    qualifier = _normalise(parts[-1])
+    return qualifier in states or qualifier in countries
+
+
+def _looks_like_space(query: str) -> bool:
+    normalised = _normalise(query)
+    if not normalised or _has_geographic_qualifier(query):
+        return False
+    if normalised in SPACE_ENDPOINTS or normalised in KNOWN_STELLAR_LOCATIONS:
+        return True
+    if any(term in normalised for term in SPACE_TERMS):
+        return True
+    return bool(
+        re.fullmatch(
+            r"(?:gj|gliese|hd|hip|kepler|k2|toi)\s*-?\s*\d+[a-z]?"
+            r"|(?:m|ngc|ic)\s*-?\s*\d+",
+            normalised,
+        )
+    )
+
+
+def _generic_space_location(query: str) -> Location:
+    normalised = _normalise(query)
+    digest = hashlib.sha256(normalised.encode("utf-8")).digest()
+    latitude = -55.0 + (digest[0] / 255.0 * 110.0)
+    longitude = -170.0 + (int.from_bytes(digest[1:3], "big") / 65535.0 * 340.0)
+    if "galaxy" in normalised or normalised in {"andromeda", "milky way"}:
+        terminal = "Deep-Space Receiving Array"
+    elif "nebula" in normalised:
+        terminal = "Research Supply Relay"
+    elif "black hole" in normalised or "quasar" in normalised or "pulsar" in normalised:
+        terminal = "Remote Observation Anchorage"
+    else:
+        terminal = "Interstellar Freight Anchorage"
+    return Location(
+        f"{query.strip()} {terminal}",
+        latitude,
+        longitude,
+        "deep-space-destination",
+    )
+
+
+def _space_location(query: str) -> Location | None:
+    if not _looks_like_space(query):
+        return None
+    return SPACE_ENDPOINTS.get(_normalise(query)) or _generic_space_location(query)
+
+
+def _deep_space_stops(
+    origin_name: str,
+    destination_name: str,
+    origin: Location,
+    destination: Location,
+) -> tuple[Location, ...]:
+    origin_is_space = origin.source == "deep-space-destination"
+    destination_is_space = destination.source == "deep-space-destination"
+    if origin_is_space and destination_is_space:
+        origin_key = _normalise(origin_name)
+        destination_key = _normalise(destination_name)
+        jupiter_system = {"jupiter", "io", "europa", "ganymede", "callisto"}
+        neptune_system = {"neptune", "triton"}
+        if origin_key in jupiter_system and destination_key in neptune_system:
+            return JUPITER_TO_NEPTUNE_ROUTE
+        if origin_key in neptune_system and destination_key in jupiter_system:
+            return tuple(reversed(JUPITER_TO_NEPTUNE_ROUTE))
+        return DEEP_SPACE_ROUTE
+    if destination_is_space:
+        return EARTH_ORBIT_ROUTE
+    return tuple(reversed(EARTH_ORBIT_ROUTE))
 
 
 def warm_offline_index() -> None:
@@ -260,6 +432,9 @@ def _azure_maps_geocode(query: str, key: str, timeout_seconds: float) -> Locatio
 
 
 def _resolve(query: str, azure_maps_key: str, timeout_seconds: float) -> Location | None:
+    space = _space_location(query)
+    if space is not None:
+        return space
     if azure_maps_key:
         try:
             resolved = _azure_maps_geocode(query, azure_maps_key, timeout_seconds)
@@ -355,6 +530,18 @@ def plan_route(
 
     sources = {origin.source, destination.source}
     source = sources.pop() if len(sources) == 1 else "hybrid"
+    if "deep-space-destination" in {origin.source, destination.source}:
+        return RoutePlan(
+            origin=origin,
+            destination=destination,
+            stops=_deep_space_stops(
+                origin_name,
+                destination_name,
+                origin,
+                destination,
+            ),
+            source="deep-space-route",
+        )
     if destination.source == "special-logistics-destination":
         return RoutePlan(
             origin=origin,
