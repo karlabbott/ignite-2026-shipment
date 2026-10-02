@@ -296,8 +296,13 @@ async def estate_view() -> JSONResponse:
 # Proxied data endpoints
 # --------------------------------------------------------------------------- #
 @app.get("/api/board", tags=["shipments"])
-async def board(limit: int = 0) -> JSONResponse:
-    code, payload = await call_api("GET", "/api/board", params={"limit": limit} if limit else None)
+async def board(limit: int = 0, offset: int = 0) -> JSONResponse:
+    params = {}
+    if limit:
+        params["limit"] = min(max(limit, 1), 200)
+    if offset:
+        params["offset"] = min(max(offset, 0), 100_000)
+    code, payload = await call_api("GET", "/api/board", params=params or None)
     return JSONResponse(payload, status_code=code)
 
 

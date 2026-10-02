@@ -312,17 +312,33 @@ def get_estate(db: Database = Depends(require_db)) -> list[TierHealth]:
 # Board and stats
 # --------------------------------------------------------------------------- #
 @app.get("/api/board", response_model=list[BoardRow], tags=["shipments"])
-def get_board(limit: int = 0, db: Database = Depends(require_db)) -> list[BoardRow]:
+def get_board(
+    limit: int = 0,
+    offset: int = 0,
+    db: Database = Depends(require_db),
+) -> list[BoardRow]:
     limit = min(limit or settings.board_limit, 200)
+    offset = min(max(offset, 0), 100_000)
     try:
         rows = db.query(
             """
-            SELECT TOP (%d) tracking_number, carrier_code, origin, destination,
-                   status, scan_count, last_location, last_scanned_by,
-                   created_by, updated_at
-              FROM dbo.vw_shipment_board
+            SELECT s.tracking_number, c.code AS carrier_code,
+                   s.origin, s.destination, s.status,
+                   (SELECT COUNT(*) FROM dbo.scan_events e
+                     WHERE e.shipment_id = s.shipment_id) AS scan_count,
+                   (SELECT TOP 1 e.location FROM dbo.scan_events e
+                     WHERE e.shipment_id = s.shipment_id
+                     ORDER BY e.occurred_at DESC, e.scan_id DESC) AS last_location,
+                   (SELECT TOP 1 e.worker_host FROM dbo.scan_events e
+                     WHERE e.shipment_id = s.shipment_id
+                     ORDER BY e.occurred_at DESC, e.scan_id DESC) AS last_scanned_by,
+                   s.created_by, s.updated_at
+              FROM dbo.shipments s
+              JOIN dbo.carriers c ON c.carrier_id = s.carrier_id
+             ORDER BY s.updated_at DESC, s.shipment_id DESC
+            OFFSET %d ROWS FETCH NEXT %d ROWS ONLY
             """,
-            (limit,),
+            (offset, limit),
         )
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc

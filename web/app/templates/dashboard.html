@@ -74,6 +74,11 @@
       </thead>
       <tbody id="board"></tbody>
     </table>
+    <nav class="board-pagination" aria-label="Shipment history pages">
+      <button id="board-previous" class="board-page-button" type="button">Previous</button>
+      <span id="board-page-label" aria-live="polite">Newest shipments</span>
+      <button id="board-next" class="board-page-button" type="button">Next</button>
+    </nav>
   </section>
   </div>
 
@@ -123,5 +128,5 @@
 {% block scripts %}
   <script>window.RETURN_URL = {{ return_url | tojson }};</script>
   <script src="/static/map.js?v=20260831-4"></script>
-  <script src="/static/dashboard.js?v=20260903-1"></script>
+  <script src="/static/dashboard.js?v=20261002-1"></script>
 {% endblock %}

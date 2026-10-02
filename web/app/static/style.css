@@ -269,6 +269,24 @@ main { padding: 28px 32px 52px; }
 .board td { padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 15px; }
 .board tr:last-child td { border-bottom: none; }
 .board tr.changed { animation: row-flash 1600ms ease-out; }
+.board-pagination {
+  display: grid;
+  grid-template-columns: 120px 1fr 120px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  color: var(--muted);
+  text-align: center;
+  background: var(--panel-2);
+  border-top: 1px solid var(--line);
+}
+.board-page-button {
+  padding: 8px 14px;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+.board-page-button:disabled { cursor: default; }
 .tracking-link { color: var(--text); font-weight: 700; text-decoration-color: var(--accent); text-underline-offset: 4px; }
 .tracking-link:hover { color: var(--accent); }
 .tracking-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }

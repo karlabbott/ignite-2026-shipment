@@ -14,10 +14,14 @@ const lastTopologyPlatform = new Map();
 const lastStatus = new Map();
 const queueHistory = [];
 const throughputHistory = [];
+const BOARD_PAGE_SIZE = 20;
 let latestEstate = [];
 let lastGoldenStatus = null;
 let consecutiveBoardFailures = 0;
 let returnProbeTimer = null;
+let boardPage = 0;
+let boardHasNext = false;
+let boardLoading = false;
 
 function probeReturnUrl() {
   const target = (window.RETURN_URL || "").replace(/\/$/, "");
@@ -184,6 +188,36 @@ function renderBoard(rows) {
         <td>${escapeHTML(row.created_by)}</td>
       </tr>`;
   }).join("");
+}
+
+function updateBoardPagination() {
+  const previous = document.getElementById("board-previous");
+  const next = document.getElementById("board-next");
+  previous.disabled = boardLoading || boardPage === 0;
+  next.disabled = boardLoading || !boardHasNext;
+  document.getElementById("board-page-label").textContent =
+    boardPage === 0 ? "Newest shipments" : `Older shipments · page ${boardPage + 1}`;
+}
+
+async function refreshBoard() {
+  if (boardLoading) return;
+  boardLoading = true;
+  updateBoardPagination();
+  try {
+    const offset = boardPage * BOARD_PAGE_SIZE;
+    const rows = await getDashboardJSON(
+      `/api/board?limit=${BOARD_PAGE_SIZE + 1}&offset=${offset}`,
+    );
+    if (rows.length === 0 && boardPage > 0) {
+      boardPage -= 1;
+      return await refreshBoard();
+    }
+    boardHasNext = rows.length > BOARD_PAGE_SIZE;
+    renderBoard(rows.slice(0, BOARD_PAGE_SIZE));
+  } finally {
+    boardLoading = false;
+    updateBoardPagination();
+  }
 }
 
 function topologyPosition(tile, workerIndex) {
@@ -375,12 +409,11 @@ async function refresh() {
   }
 
   try {
-    const [stats, board] = await Promise.all([
+    const [stats] = await Promise.all([
       getDashboardJSON("/api/stats"),
-      getDashboardJSON("/api/board"),
+      refreshBoard(),
     ]);
     renderStats(stats);
-    renderBoard(board);
     consecutiveBoardFailures = 0;
     setUnavailable(false);
     clearBanner();
@@ -416,5 +449,15 @@ document.getElementById("poll-display-toggle").addEventListener("click", () => {
   const minimized = card.classList.toggle("minimized");
   button.textContent = minimized ? "Show poll" : "Minimize";
   button.setAttribute("aria-expanded", String(!minimized));
+});
+document.getElementById("board-previous").addEventListener("click", () => {
+  if (boardLoading || boardPage === 0) return;
+  boardPage -= 1;
+  refreshBoard().catch((err) => showBanner(`Board unavailable — ${err.message}`, "error"));
+});
+document.getElementById("board-next").addEventListener("click", () => {
+  if (boardLoading || !boardHasNext) return;
+  boardPage += 1;
+  refreshBoard().catch((err) => showBanner(`Board unavailable — ${err.message}`, "error"));
 });
 setInterval(refresh, window.REFRESH_MS || 3000);
