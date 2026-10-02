@@ -398,6 +398,21 @@ def create_shipment(
         azure_maps_key=settings.azure_maps_key,
         timeout_seconds=settings.geocoding_timeout_seconds,
     )
+    resolved_origin = route.origin.name if route.origin else payload.origin
+    resolved_destination = (
+        route.destination.name if route.destination else payload.destination
+    )
+    if (
+        resolved_origin != payload.origin
+        or resolved_destination != payload.destination
+    ):
+        log.info(
+            "resolved requested route %s -> %s as %s -> %s",
+            payload.origin,
+            payload.destination,
+            resolved_origin,
+            resolved_destination,
+        )
 
     try:
         if payload.carrier_code:
@@ -433,8 +448,8 @@ def create_shipment(
                     (
                         tracking,
                         carrier_id,
-                        payload.origin,
-                        payload.destination,
+                        resolved_origin,
+                        resolved_destination,
                         payload.description,
                         payload.weight_kg,
                         payload.created_by,

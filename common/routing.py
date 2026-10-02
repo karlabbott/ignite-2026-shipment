@@ -7,8 +7,9 @@ external service being available after the route is planned.
 
 from __future__ import annotations
 
-import json
+import difflib
 import http.client
+import json
 import logging
 import math
 import re
@@ -86,6 +87,12 @@ HUBS: tuple[Location, ...] = tuple(
     )
 )
 
+COUNTRY_GATEWAYS: dict[str, str] = {
+    # Countries and territories without a practical capital need an explicit
+    # logistics gateway rather than a synthetic truck destination.
+    "AQ": "Ushuaia, Argentina",
+}
+
 
 def _normalise(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", " ", value.casefold()).strip()
@@ -119,10 +126,21 @@ def _qualifier_codes() -> tuple[dict[str, str], dict[str, str]]:
     return states, countries
 
 
+@lru_cache(maxsize=1)
+def _country_names() -> tuple[dict[str, str], dict[str, dict[str, Any]]]:
+    countries = geonamescache.GeonamesCache().get_countries()
+    names: dict[str, str] = {}
+    for code, country in countries.items():
+        for value in (code, country["name"], country["iso3"]):
+            names[_normalise(value)] = code
+    return names, countries
+
+
 def warm_offline_index() -> None:
     """Load the fallback data before audience requests arrive."""
     _city_index()
     _qualifier_codes()
+    _country_names()
 
 
 @lru_cache(maxsize=2048)
@@ -156,6 +174,37 @@ def _offline_geocode(query: str) -> Location | None:
         latitude=float(city["latitude"]),
         longitude=float(city["longitude"]),
         source="offline-geonames",
+    )
+
+
+@lru_cache(maxsize=2048)
+def _country_gateway(query: str) -> Location | None:
+    """Resolve a broad or slightly misspelled country to a practical city."""
+    names, countries = _country_names()
+    normalised = _normalise(query)
+    code = names.get(normalised)
+    if code is None:
+        matches = difflib.get_close_matches(normalised, names, n=1, cutoff=0.84)
+        if matches:
+            code = names[matches[0]]
+    if code is None:
+        return None
+
+    country = countries[code]
+    gateway = COUNTRY_GATEWAYS.get(code)
+    if gateway is None and country.get("capital"):
+        gateway = f"{country['capital']}, {country['name']}"
+    if gateway is None:
+        return None
+
+    resolved = _offline_geocode(gateway)
+    if resolved is None:
+        return None
+    return Location(
+        name=gateway,
+        latitude=resolved.latitude,
+        longitude=resolved.longitude,
+        source="offline-country-gateway",
     )
 
 
@@ -209,7 +258,7 @@ def _resolve(query: str, azure_maps_key: str, timeout_seconds: float) -> Locatio
             http.client.HTTPException,
         ) as exc:
             log.warning("Azure Maps geocoding failed for %r: %s; using offline routing", query, exc)
-    return _offline_geocode(query)
+    return _offline_geocode(query) or _country_gateway(query)
 
 
 def _distance(left: Location, right: Location) -> float:
@@ -291,13 +340,13 @@ def plan_route(
     if not hubs:
         hubs = (
             Location(
-                f"{origin_name} Sort Center",
+                f"{origin.name} Sort Center",
                 origin.latitude,
                 origin.longitude,
                 "synthetic-terminal",
             ),
             Location(
-                f"{destination_name} Distribution Center",
+                f"{destination.name} Distribution Center",
                 destination.latitude,
                 destination.longitude,
                 "synthetic-terminal",
@@ -307,7 +356,7 @@ def plan_route(
         hubs = (
             hubs[0],
             Location(
-                f"{destination_name} Distribution Center",
+                f"{destination.name} Distribution Center",
                 destination.latitude,
                 destination.longitude,
                 "synthetic-terminal",

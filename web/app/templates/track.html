@@ -67,6 +67,12 @@
     <button id="another-button" class="secondary">Ship another</button>
   </section>
 
+  <section class="card hidden" id="recent-card">
+    <h2>Your shipments</h2>
+    <p class="lede">Created on this device. Select one to track it again.</p>
+    <ul id="recent-shipments" class="recent-shipments"></ul>
+  </section>
+
   <section class="card lookup">
     <h2>Already have a number?</h2>
     <form id="lookup-form" autocomplete="off">
@@ -82,5 +88,5 @@
 {% block scripts %}
   <script>window.PREFILL = {{ prefill | tojson }};</script>
   <script src="/static/map.js?v=20260831-4"></script>
-  <script src="/static/track.js?v=20260901-1"></script>
+  <script src="/static/track.js?v=20261002-1"></script>
 {% endblock %}

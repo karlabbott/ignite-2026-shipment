@@ -73,8 +73,15 @@ body {
   letter-spacing: 3.2px;
 }
 
-.qr-hint { display: flex; align-items: baseline; gap: 6px; color: var(--muted); font-size: 15px; }
+.qr-hint { display: flex; align-items: center; gap: 14px; color: var(--muted); font-size: 15px; }
 .qr-hint code { color: var(--text); font-size: 17px; }
+.track-qr {
+  width: 112px;
+  height: 112px;
+  padding: 5px;
+  background: #fff;
+  border: 1px solid var(--line);
+}
 .track-link { text-decoration-color: var(--accent); text-underline-offset: 4px; }
 .track-link:hover code { color: var(--accent); }
 .track-link:focus-visible { outline: 3px solid var(--accent); outline-offset: 3px; }
@@ -343,6 +350,24 @@ button:disabled { opacity: 0.55; cursor: progress; }
 .scans .scan-meta { display: block; font-size: 13px; color: var(--muted); }
 
 .hint { color: var(--muted); font-size: 14px; }
+
+.recent-shipments { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.recent-shipment {
+  display: grid;
+  grid-template-columns: minmax(135px, auto) 1fr;
+  gap: 1px 14px;
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--text);
+  text-align: left;
+  background: var(--panel-2);
+  border: 1px solid var(--line);
+}
+.recent-shipment:hover { border-color: var(--accent); }
+.recent-shipment:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+.recent-tracking { grid-row: 1 / span 2; align-self: center; font-weight: 700; }
+.recent-description { font-weight: 650; }
+.recent-route { color: var(--muted); font-size: 13px; }
 
 /* ------------------------------------------------------------ audience vote */
 .vote-shell {

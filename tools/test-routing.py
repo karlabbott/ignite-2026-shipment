@@ -40,6 +40,17 @@ assert [stop.name for stop in local.stops] == [
 assert local.origin is not None
 assert local.destination is not None
 
+antarctica = plan_route("Seattle, WA", "Antartica")
+assert antarctica.destination is not None
+assert antarctica.destination.name == "Ushuaia, Argentina"
+assert antarctica.destination.source == "offline-country-gateway"
+assert antarctica.stops
+
+country = plan_route("Seattle, WA", "France")
+assert country.destination is not None
+assert country.destination.name == "Paris, France"
+assert country.destination.source == "offline-country-gateway"
+
 online_geocoder = routing._azure_maps_geocode
 try:
     routing._azure_maps_geocode = lambda *_args, **_kwargs: (_ for _ in ()).throw(

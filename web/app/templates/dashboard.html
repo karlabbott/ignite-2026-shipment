@@ -4,8 +4,12 @@
 
 {% block topbar_extra %}
   <div class="qr-hint">
-    <span>Create a shipment:</span>
-    <a class="track-link" href="{{ track_url }}"><code>{{ track_url }}</code></a>
+    <img class="track-qr" src="/static/track-99b-qr.svg"
+         alt="QR code for {{ track_url }}">
+    <span>
+      Scan to create a shipment<br>
+      <a class="track-link" href="{{ track_url }}"><code>{{ track_url }}</code></a>
+    </span>
   </div>
 {% endblock %}
 

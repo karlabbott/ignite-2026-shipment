@@ -8,10 +8,71 @@ const lookupForm = document.getElementById("lookup-form");
 const itemPreset = document.getElementById("item-preset");
 const customItem = document.getElementById("custom-item");
 const customItemLabel = document.getElementById("custom-item-label");
+const recentCard = document.getElementById("recent-card");
+const recentShipments = document.getElementById("recent-shipments");
 
 let tracking = null;
 let pollTimer = null;
 let previousStatus = null;
+const shipmentHistoryKey = "zava-created-shipments-v1";
+
+function loadShipmentHistory() {
+  try {
+    const value = JSON.parse(localStorage.getItem(shipmentHistoryKey) || "[]");
+    return Array.isArray(value) ? value.slice(0, 12) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveShipmentHistory(shipments) {
+  try {
+    localStorage.setItem(shipmentHistoryKey, JSON.stringify(shipments.slice(0, 12)));
+  } catch {
+    // Tracking still works when storage is unavailable or full.
+  }
+}
+
+function renderShipmentHistory() {
+  const shipments = loadShipmentHistory();
+  recentShipments.replaceChildren();
+  recentCard.classList.toggle("hidden", shipments.length === 0);
+
+  for (const shipment of shipments) {
+    const item = document.createElement("li");
+    const button = document.createElement("button");
+    const number = document.createElement("span");
+    const description = document.createElement("span");
+    const route = document.createElement("span");
+
+    button.type = "button";
+    button.className = "recent-shipment";
+    number.className = "mono recent-tracking";
+    number.textContent = shipment.tracking_number;
+    description.className = "recent-description";
+    description.textContent = shipment.description;
+    route.className = "recent-route";
+    route.textContent = `${shipment.origin} → ${shipment.destination}`;
+    button.append(number, description, route);
+    button.addEventListener("click", () => showResult(shipment.tracking_number));
+    item.append(button);
+    recentShipments.append(item);
+  }
+}
+
+function rememberShipment(shipment) {
+  const shipments = loadShipmentHistory().filter(
+    (item) => item.tracking_number !== shipment.tracking_number,
+  );
+  shipments.unshift({
+    tracking_number: shipment.tracking_number,
+    description: shipment.description,
+    origin: shipment.origin,
+    destination: shipment.destination,
+  });
+  saveShipmentHistory(shipments);
+  renderShipmentHistory();
+}
 
 function clientToken() {
   const key = "zava-audience-client";
@@ -132,6 +193,7 @@ createForm.addEventListener("submit", async (event) => {
       },
       body: JSON.stringify(body),
     });
+    rememberShipment(created);
     showResult(created.tracking_number);
   } catch (err) {
     if (err.status === 429) {
@@ -159,4 +221,5 @@ document.getElementById("another-button").addEventListener("click", () => {
   history.replaceState(null, "", "/track");
 });
 
+renderShipmentHistory();
 if (window.PREFILL) showResult(window.PREFILL);
