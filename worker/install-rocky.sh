@@ -11,7 +11,7 @@ require_root
 ROOT="$(repo_root)"
 
 log "installing OS packages"
-dnf -y install python3 python3-pip python3-devel gcc curl
+dnf -y install python3 python3-pip python3-devel gcc curl iproute-tc
 
 ensure_user
 install_payload "${ROOT}" worker api

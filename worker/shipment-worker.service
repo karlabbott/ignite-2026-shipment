@@ -1,5 +1,5 @@
 [Unit]
-Description=Zava Logistics worker (Rocky tier)
+Description=Zava Logistics worker
 Documentation=https://github.com/karlabbott/ignite-2026-shipment
 After=network-online.target
 Wants=network-online.target

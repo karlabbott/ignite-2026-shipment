@@ -54,7 +54,10 @@ function renderShipmentHistory() {
     route.className = "recent-route";
     route.textContent = `${shipment.origin} → ${shipment.destination}`;
     button.append(number, description, route);
-    button.addEventListener("click", () => showResult(shipment.tracking_number));
+    button.addEventListener("click", () => {
+      showResult(shipment.tracking_number);
+      window.scrollTo({top: 0, behavior: "smooth"});
+    });
     item.append(button);
     recentShipments.append(item);
   }

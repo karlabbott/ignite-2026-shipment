@@ -208,7 +208,8 @@ def drift_loop() -> None:
                    AND NOT EXISTS (SELECT 1 FROM dbo.scan_queue q
                                     WHERE q.shipment_id = s.shipment_id
                                       AND q.processed_at IS NULL)
-                 ORDER BY s.updated_at ASC
+                 ORDER BY CASE WHEN s.created_by = 'attendee' THEN 0 ELSE 1 END,
+                          s.updated_at ASC
                 """,
                 (settings.drift_batch, settings.drift_min_age_seconds),
             )

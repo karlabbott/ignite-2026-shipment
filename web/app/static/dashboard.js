@@ -55,9 +55,9 @@ async function getDashboardJSON(url) {
 
 function logoFor(tile) {
   if ((tile.distro || "").toLowerCase().includes("azure linux")) {
-    return "/static/logos/azurelinux.svg";
+    return "/static/logos/azurelinux.png";
   }
-  return TIER_LOGO[tile.tier] || "/static/logos/azurelinux.svg";
+  return TIER_LOGO[tile.tier] || "/static/logos/azurelinux.png";
 }
 
 function orderedEstate(tiers) {

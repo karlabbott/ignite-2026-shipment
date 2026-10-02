@@ -55,7 +55,10 @@ function escapeHTML(value) {
 
 function relativeTime(iso) {
   if (!iso) return "never";
-  const seconds = Math.max(0, (Date.now() - new Date(iso).getTime()) / 1000);
+  const value = String(iso);
+  const timestamp = new Date(/[zZ]|[+-]\d{2}:\d{2}$/.test(value) ? value : `${value}Z`).getTime();
+  if (!Number.isFinite(timestamp)) return "unknown";
+  const seconds = Math.max(0, (Date.now() - timestamp) / 1000);
   if (seconds < 60) return `${Math.round(seconds)}s ago`;
   if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
   return `${Math.round(seconds / 3600)}h ago`;
