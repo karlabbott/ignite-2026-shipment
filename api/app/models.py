@@ -111,7 +111,11 @@ class TierHealth(BaseModel):
     healthy: bool = True
 
 
-FailureChoice = Literal["silence_worker", "cut_db_route", "crush_demand"]
+FailureChoice = Literal[
+    "freeze_azurelinux",
+    "degrade_worker_sql",
+    "delay_worker_claims",
+]
 
 
 class FailureVote(BaseModel):

@@ -83,7 +83,7 @@ CREATE TABLE dbo.failure_polls (
     winner_code   VARCHAR(24) NULL
         CONSTRAINT ck_failure_polls_winner
         CHECK (winner_code IS NULL OR winner_code IN (
-            'silence_worker', 'cut_db_route', 'crush_demand'
+            'freeze_azurelinux', 'degrade_worker_sql', 'delay_worker_claims'
         )),
     opened_at     DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
     locked_at     DATETIME2(0) NULL,
@@ -99,12 +99,58 @@ CREATE TABLE dbo.failure_votes (
     voter_token VARCHAR(64) NOT NULL,
     choice_code VARCHAR(24) NOT NULL
         CONSTRAINT ck_failure_votes_choice
-        CHECK (choice_code IN ('silence_worker', 'cut_db_route', 'crush_demand')),
+        CHECK (choice_code IN (
+            'freeze_azurelinux', 'degrade_worker_sql', 'delay_worker_claims'
+        )),
     voted_at     DATETIME2(0) NOT NULL DEFAULT SYSUTCDATETIME(),
     CONSTRAINT pk_failure_votes PRIMARY KEY (poll_id, voter_token),
     CONSTRAINT fk_failure_votes_poll FOREIGN KEY (poll_id)
         REFERENCES dbo.failure_polls (poll_id) ON DELETE CASCADE
 );
+GO
+
+/* Migrate polls created by the earlier placeholder scenarios. Drop the checks
+   first so the durable codes can be translated without discarding votes. */
+IF OBJECT_ID('dbo.failure_polls', 'U') IS NOT NULL
+BEGIN
+    IF OBJECT_ID('dbo.ck_failure_polls_winner', 'C') IS NOT NULL
+        ALTER TABLE dbo.failure_polls DROP CONSTRAINT ck_failure_polls_winner;
+
+    UPDATE dbo.failure_polls
+       SET winner_code = CASE winner_code
+           WHEN 'silence_worker' THEN 'freeze_azurelinux'
+           WHEN 'cut_db_route' THEN 'degrade_worker_sql'
+           WHEN 'crush_demand' THEN 'delay_worker_claims'
+           ELSE winner_code
+       END;
+
+    ALTER TABLE dbo.failure_polls WITH CHECK
+        ADD CONSTRAINT ck_failure_polls_winner
+        CHECK (winner_code IS NULL OR winner_code IN (
+            'freeze_azurelinux', 'degrade_worker_sql', 'delay_worker_claims'
+        ));
+END;
+GO
+
+IF OBJECT_ID('dbo.failure_votes', 'U') IS NOT NULL
+BEGIN
+    IF OBJECT_ID('dbo.ck_failure_votes_choice', 'C') IS NOT NULL
+        ALTER TABLE dbo.failure_votes DROP CONSTRAINT ck_failure_votes_choice;
+
+    UPDATE dbo.failure_votes
+       SET choice_code = CASE choice_code
+           WHEN 'silence_worker' THEN 'freeze_azurelinux'
+           WHEN 'cut_db_route' THEN 'degrade_worker_sql'
+           WHEN 'crush_demand' THEN 'delay_worker_claims'
+           ELSE choice_code
+       END;
+
+    ALTER TABLE dbo.failure_votes WITH CHECK
+        ADD CONSTRAINT ck_failure_votes_choice
+        CHECK (choice_code IN (
+            'freeze_azurelinux', 'degrade_worker_sql', 'delay_worker_claims'
+        ));
+END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.usp_open_failure_poll
@@ -136,7 +182,9 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @choice_code NOT IN ('silence_worker', 'cut_db_route', 'crush_demand')
+    IF @choice_code NOT IN (
+        'freeze_azurelinux', 'degrade_worker_sql', 'delay_worker_claims'
+    )
     BEGIN
         SELECT CAST(0 AS BIT) AS accepted, 'invalid_choice' AS reason;
         RETURN;
@@ -196,9 +244,9 @@ BEGIN
     WITH choices AS (
         SELECT choice_code, priority
           FROM (VALUES
-              ('silence_worker', 1),
-              ('cut_db_route', 2),
-              ('crush_demand', 3)
+              ('freeze_azurelinux', 1),
+              ('degrade_worker_sql', 2),
+              ('delay_worker_claims', 3)
           ) AS fixed(choice_code, priority)
     ),
     totals AS (

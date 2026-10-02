@@ -74,6 +74,7 @@ worker='$WorkerAddress'
 api='$ApiAddress'
 stage=`$(mktemp -d /var/tmp/zava-azurelinux-worker.XXXXXX)
 trap 'rm -rf "`$stage"' EXIT
+chown estate:estate "`$stage"
 
 for attempt in `$(seq 1 30); do
   if sudo -u estate ssh `$ssh_options estate@`$worker 'echo AZURE_LINUX_SSH_READY' >/dev/null 2>&1; then
@@ -90,6 +91,7 @@ sudo -u estate ssh `$ssh_options estate@`$api 'sudo cat /etc/shipment/shipment.e
 sed -i '/^SHIPMENT_DRIFT_ENABLED=/d' "`$stage/shipment.env"
 printf 'SHIPMENT_DRIFT_ENABLED=false\n' >> "`$stage/shipment.env"
 chmod 0600 "`$stage/shipment.env"
+chown estate:estate "`$stage/shipment.env"
 
 sudo -u estate scp `$scp_options "`$stage/shipment.env" estate@`$worker:/var/tmp/zava-shipment.env
 sudo -u estate ssh `$ssh_options estate@`$worker "

@@ -765,9 +765,9 @@ def presentation_data(
 
 
 FAILURE_CHOICES = (
-    ("silence_worker", "Silence a worker"),
-    ("cut_db_route", "Cut the database route"),
-    ("crush_demand", "Crush it with demand"),
+    ("freeze_azurelinux", "Freeze the Azure Linux worker"),
+    ("degrade_worker_sql", "Degrade worker-to-SQL networking"),
+    ("delay_worker_claims", "Delay worker queue claims"),
 )
 
 
