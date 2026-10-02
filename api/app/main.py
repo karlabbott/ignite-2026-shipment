@@ -415,7 +415,33 @@ def create_shipment(
         )
 
     try:
-        if payload.carrier_code:
+        if route.source == "deep-space-route":
+            db.execute(
+                """
+                MERGE dbo.carriers AS target
+                USING (VALUES (
+                    'IPS',
+                    N'Intergalactic Planetary Shippers',
+                    N'Brooklyn Orbital Dispatch'
+                )) AS source (code, name, hub_city)
+                ON target.code = source.code
+                WHEN MATCHED THEN UPDATE SET
+                    name = source.name,
+                    hub_city = source.hub_city
+                WHEN NOT MATCHED THEN INSERT (code, name, hub_city)
+                    VALUES (source.code, source.name, source.hub_city);
+                """
+            )
+            carrier = db.query_one(
+                "SELECT carrier_id FROM dbo.carriers WHERE code = 'IPS'"
+            )
+            if carrier is None:
+                raise HTTPException(
+                    status_code=503,
+                    detail="Intergalactic carrier unavailable",
+                )
+            carrier_id = carrier["carrier_id"]
+        elif payload.carrier_code:
             carrier = db.query_one(
                 "SELECT carrier_id FROM dbo.carriers WHERE code = %s",
                 (payload.carrier_code,),

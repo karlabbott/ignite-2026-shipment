@@ -181,9 +181,9 @@ SPACE_TERMS = {
 
 EARTH_ORBIT_ROUTE: tuple[Location, ...] = (
     Location(
-        "Cape Canaveral Orbital Freight Terminal",
-        28.3922,
-        -80.6077,
+        "Brooklyn Intergalactic Dispatch Center",
+        40.6995,
+        -73.9720,
         "deep-space-gateway",
     ),
     Location("Lunar Gateway Cargo Relay", 2.0, -20.0, "deep-space-gateway"),

@@ -9,9 +9,12 @@ USING (VALUES
     ('ZAV', N'Zava Logistics',       N'Seattle'),
     ('CAS', N'Cascade Logistics',    N'Portland'),
     ('PSX', N'Puget Sound Express',  N'Tacoma'),
-    ('RNR', N'Rainier Overland',     N'Spokane')
+    ('RNR', N'Rainier Overland',     N'Spokane'),
+    ('IPS', N'Intergalactic Planetary Shippers', N'Brooklyn Orbital Dispatch')
 ) AS source (code, name, hub_city)
 ON target.code = source.code
+WHEN MATCHED THEN
+    UPDATE SET name = source.name, hub_city = source.hub_city
 WHEN NOT MATCHED THEN
     INSERT (code, name, hub_city) VALUES (source.code, source.name, source.hub_city);
 GO

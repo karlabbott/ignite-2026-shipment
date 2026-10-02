@@ -70,7 +70,7 @@ interstellar = plan_route("Seattle, WA", "Kepler-186f")
 assert interstellar.destination is not None
 assert interstellar.destination.name == "Kepler-186f Interstellar Freight Anchorage"
 assert [stop.name for stop in interstellar.stops] == [
-    "Cape Canaveral Orbital Freight Terminal",
+    "Brooklyn Intergalactic Dispatch Center",
     "Lunar Gateway Cargo Relay",
 ]
 assert interstellar.source == "deep-space-route"
