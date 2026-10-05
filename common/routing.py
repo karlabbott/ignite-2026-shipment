@@ -34,6 +34,11 @@ class Location:
     latitude: float
     longitude: float
     source: str
+    stage_name: str | None = None
+
+    @property
+    def stage_label(self) -> str:
+        return self.stage_name or self.name
 
 
 @dataclass(frozen=True)
@@ -318,6 +323,7 @@ def _generic_space_location(query: str) -> Location:
         latitude,
         longitude,
         "deep-space-destination",
+        terminal,
     )
 
 
@@ -383,11 +389,24 @@ def _offline_geocode(query: str) -> Location | None:
         return matches, int(city.get("population") or 0)
 
     city = max(candidates, key=score)
+    city_name = city["name"]
+    country_code = city.get("countrycode") or ""
+    if country_code == "US" and city.get("admin1code"):
+        stage_name = f"{city_name}, {city['admin1code']}"
+    else:
+        countries = geonamescache.GeonamesCache().get_countries()
+        country_name = countries.get(country_code, {}).get("name", country_code)
+        stage_name = (
+            city_name
+            if _normalise(city_name) == _normalise(country_name)
+            else f"{city_name}, {country_name}"
+        )
     return Location(
         name=query,
         latitude=float(city["latitude"]),
         longitude=float(city["longitude"]),
         source="offline-geonames",
+        stage_name=stage_name,
     )
 
 
@@ -447,14 +466,31 @@ def _azure_maps_geocode(query: str, key: str, timeout_seconds: float) -> Locatio
     results = payload.get("results") or []
     if not results:
         return None
-    position = results[0].get("position") or {}
+    result = results[0]
+    position = result.get("position") or {}
     if "lat" not in position or "lon" not in position:
         return None
+    address = result.get("address") or {}
+    locality = (
+        address.get("municipality")
+        or address.get("municipalitySubdivision")
+        or address.get("countrySecondarySubdivision")
+    )
+    region = (
+        address.get("countrySubdivisionName")
+        or address.get("countrySubdivision")
+        or address.get("country")
+    )
+    if locality and region and _normalise(locality) != _normalise(region):
+        stage_name = f"{locality}, {region}"
+    else:
+        stage_name = locality or region or "Mapped location"
     return Location(
         name=query,
         latitude=float(position["lat"]),
         longitude=float(position["lon"]),
         source="azure-maps",
+        stage_name=stage_name,
     )
 
 
@@ -587,12 +623,14 @@ def plan_route(
                 origin.latitude,
                 origin.longitude,
                 "synthetic-terminal",
+                f"{origin.stage_label} Sort Center",
             ),
             Location(
                 f"{destination.name} Distribution Center",
                 destination.latitude,
                 destination.longitude,
                 "synthetic-terminal",
+                f"{destination.stage_label} Distribution Center",
             ),
         )
     elif len(hubs) == 1:
@@ -603,6 +641,7 @@ def plan_route(
                 destination.latitude,
                 destination.longitude,
                 "synthetic-terminal",
+                f"{destination.stage_label} Distribution Center",
             ),
         )
     return RoutePlan(

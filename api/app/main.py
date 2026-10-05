@@ -57,14 +57,19 @@ database = Database(settings)
 # Rate limiting
 # --------------------------------------------------------------------------- #
 class RateLimiter:
-    """Fixed-window limiter, per client and global.
+    """Fixed-window limiter with optional global capacity.
 
     Deliberately in-process and approximate. The threat model is a room full of
     people with phones and a sense of humour, not a botnet — and nginx in front
     of the web tier carries the heavier limits.
     """
 
-    def __init__(self, per_client: int, window: int, global_limit: int) -> None:
+    def __init__(
+        self,
+        per_client: int,
+        window: int,
+        global_limit: int | None = None,
+    ) -> None:
         self._per_client = per_client
         self._window = window
         self._global_limit = global_limit
@@ -81,7 +86,7 @@ class RateLimiter:
         now = time.monotonic()
         with self._lock:
             self._trim(self._global, now)
-            if len(self._global) >= self._global_limit:
+            if self._global_limit is not None and len(self._global) >= self._global_limit:
                 return False, "The demo is being enthusiastically enjoyed. Try again shortly."
             bucket = self._hits[client]
             self._trim(bucket, now)
@@ -91,7 +96,8 @@ class RateLimiter:
                     f"{self._window} seconds. Give someone else a turn."
                 )
             bucket.append(now)
-            self._global.append(now)
+            if self._global_limit is not None:
+                self._global.append(now)
             # Keep the dict from growing unbounded over a long rehearsal day.
             if len(self._hits) > 5000:
                 for key in [k for k, v in self._hits.items() if not v][:2500]:
@@ -99,8 +105,12 @@ class RateLimiter:
             return True, ""
 
 
-limiter = RateLimiter(
+client_limiter = RateLimiter(
     settings.create_rate_limit,
+    settings.create_rate_window,
+)
+ip_limiter = RateLimiter(
+    settings.create_ip_rate_limit,
     settings.create_rate_window,
     settings.create_global_limit,
 )
@@ -197,6 +207,20 @@ def client_identity(request: Request) -> str:
     ):
         return f"browser:{token}"
     return f"ip:{client_ip(request)}"
+
+
+def enforce_shipment_create_limit(request: Request) -> None:
+    checks = (
+        (ip_limiter, f"ip:{client_ip(request)}"),
+        (client_limiter, client_identity(request)),
+    )
+    for rate_limiter, identity in checks:
+        allowed, reason = rate_limiter.check(identity)
+        if not allowed:
+            raise HTTPException(
+                status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                detail=reason,
+            )
 
 
 def trusted_load_generator(request: Request) -> bool:
@@ -323,16 +347,33 @@ def get_board(
         rows = db.query(
             """
             SELECT s.tracking_number, c.code AS carrier_code,
-                   s.origin, s.destination, s.status,
+                   COALESCE(s.stage_origin, N'Custom origin') AS origin,
+                   COALESCE(s.stage_destination, N'Custom destination') AS destination,
+                   s.status,
                    (SELECT COUNT(*) FROM dbo.scan_events e
                      WHERE e.shipment_id = s.shipment_id) AS scan_count,
-                   (SELECT TOP 1 e.location FROM dbo.scan_events e
-                     WHERE e.shipment_id = s.shipment_id
-                     ORDER BY e.occurred_at DESC, e.scan_id DESC) AS last_location,
+                   CASE s.status
+                       WHEN 'PICKED_UP' THEN COALESCE(s.stage_origin, N'Custom origin')
+                       WHEN 'IN_TRANSIT' THEN COALESCE(
+                           (SELECT stage_location FROM dbo.shipment_route_stops
+                             WHERE shipment_id = s.shipment_id AND stop_sequence = 1),
+                           N'In transit')
+                       WHEN 'AT_HUB' THEN COALESCE(
+                           (SELECT stage_location FROM dbo.shipment_route_stops
+                             WHERE shipment_id = s.shipment_id AND stop_sequence = 2),
+                           (SELECT stage_location FROM dbo.shipment_route_stops
+                             WHERE shipment_id = s.shipment_id AND stop_sequence = 1),
+                           CONCAT(c.hub_city, N' Hub'))
+                       WHEN 'OUT_FOR_DELIVERY' THEN
+                           COALESCE(s.stage_destination, N'Custom destination')
+                       WHEN 'DELIVERED' THEN
+                           COALESCE(s.stage_destination, N'Custom destination')
+                       ELSE NULL
+                   END AS last_location,
                    (SELECT TOP 1 e.worker_host FROM dbo.scan_events e
                      WHERE e.shipment_id = s.shipment_id
                      ORDER BY e.occurred_at DESC, e.scan_id DESC) AS last_scanned_by,
-                   s.created_by, s.updated_at
+                   N'Audience' AS created_by, s.updated_at
               FROM dbo.shipments s
               JOIN dbo.carriers c ON c.carrier_id = s.carrier_id
              ORDER BY s.updated_at DESC, s.shipment_id DESC
@@ -404,9 +445,7 @@ def create_shipment(
     limited and every string has already been length-capped by pydantic.
     """
     if not trusted_load_generator(request):
-        allowed, reason = limiter.check(client_identity(request))
-        if not allowed:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
+        enforce_shipment_create_limit(request)
 
     route = plan_route(
         payload.origin,
@@ -417,6 +456,14 @@ def create_shipment(
     resolved_origin = route.origin.name if route.origin else payload.origin
     resolved_destination = (
         route.destination.name if route.destination else payload.destination
+    )
+    stage_origin = (
+        route.origin.stage_label[:100] if route.origin else "Custom origin"
+    )
+    stage_destination = (
+        route.destination.stage_label[:100]
+        if route.destination
+        else "Custom destination"
     )
     if (
         resolved_origin != payload.origin
@@ -480,18 +527,21 @@ def create_shipment(
                     """
                     INSERT INTO dbo.shipments
                         (tracking_number, carrier_id, origin, destination,
-                         description, weight_kg, status, created_by,
+                         stage_origin, stage_destination, description,
+                         weight_kg, status, created_by,
                          origin_latitude, origin_longitude,
                          destination_latitude, destination_longitude)
                     OUTPUT inserted.shipment_id
-                    VALUES (%s, %s, %s, %s, %s, %s, 'CREATED', %s,
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, 'CREATED', %s,
                             %s, %s, %s, %s)
                     """,
                     (
                         tracking,
                         carrier_id,
-                        resolved_origin,
-                        resolved_destination,
+                        payload.origin,
+                        payload.destination,
+                        stage_origin,
+                        stage_destination,
                         payload.description,
                         payload.weight_kg,
                         payload.created_by,
@@ -529,13 +579,15 @@ def create_shipment(
                 db.execute(
                     """
                     INSERT INTO dbo.shipment_route_stops
-                        (shipment_id, stop_sequence, location, latitude, longitude, route_source)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (shipment_id, stop_sequence, location, stage_location,
+                         latitude, longitude, route_source)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         shipment_id,
                         sequence,
                         stop.name,
+                        stop.stage_label[:120],
                         stop.latitude,
                         stop.longitude,
                         route.source,
@@ -668,8 +720,11 @@ def presentation_data(
             """
             WITH recent AS (
                 SELECT TOP (%d)
-                       shipment_id, tracking_number, origin, destination, status,
-                       created_by, created_at, updated_at, is_golden,
+                       shipment_id, tracking_number,
+                       COALESCE(stage_origin, N'Custom origin') AS origin,
+                       COALESCE(stage_destination, N'Custom destination') AS destination,
+                       status,
+                       created_at, updated_at, is_golden,
                        demo_hold_status,
                        origin_latitude, origin_longitude,
                        destination_latitude, destination_longitude
@@ -681,8 +736,11 @@ def presentation_data(
             selected AS (
                 SELECT * FROM recent
                 UNION
-                SELECT shipment_id, tracking_number, origin, destination, status,
-                       created_by, created_at, updated_at, is_golden,
+                SELECT shipment_id, tracking_number,
+                       COALESCE(stage_origin, N'Custom origin') AS origin,
+                       COALESCE(stage_destination, N'Custom destination') AS destination,
+                       status,
+                       created_at, updated_at, is_golden,
                        demo_hold_status,
                        origin_latitude, origin_longitude,
                        destination_latitude, destination_longitude
@@ -691,7 +749,8 @@ def presentation_data(
                    AND origin_latitude IS NOT NULL
                    AND destination_latitude IS NOT NULL
             )
-            SELECT selected.*, r.stop_sequence, r.location AS stop_location,
+            SELECT selected.*, r.stop_sequence,
+                   COALESCE(r.stage_location, N'Route stop') AS stop_location,
                    r.latitude AS stop_latitude, r.longitude AS stop_longitude
               FROM selected
               LEFT JOIN dbo.shipment_route_stops AS r
@@ -716,7 +775,7 @@ def presentation_data(
                 "status": row["status"],
                 "status_narrative": pipeline.narrative_for(row["status"]),
                 "progress_percent": pipeline.progress_percent(row["status"]),
-                "created_by": row["created_by"],
+                "created_by": "Audience",
                 "created_at": row["created_at"],
                 "updated_at": row["updated_at"],
                 "is_golden": bool(row["is_golden"]),
@@ -971,9 +1030,10 @@ def advance_shipment(
     """
     tracking = tracking.strip().upper()[:20]
     if not trusted_load_generator(request):
-        allowed, reason = limiter.check(client_identity(request))
-        if not allowed:
-            raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail=reason)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Load generator key required",
+        )
 
     try:
         row = db.query_one(
@@ -1000,7 +1060,7 @@ def advance_shipment(
             )
         db.execute(
             "INSERT INTO dbo.scan_queue (shipment_id, requested_by) VALUES (%s, %s)",
-            (row["shipment_id"], f"api:{client_ip(request)}"),
+            (row["shipment_id"], "load-generator"),
         )
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc

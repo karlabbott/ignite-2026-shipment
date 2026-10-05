@@ -78,11 +78,13 @@ def advance_one(queue_id: int, shipment_id: int, requested_by: str) -> str | Non
     """
     row = database.query_one(
         """
-        SELECT s.shipment_id, s.tracking_number, s.status, s.origin, s.destination,
+        SELECT s.shipment_id, s.tracking_number, s.status,
+               COALESCE(s.stage_origin, N'Custom origin') AS origin,
+               COALESCE(s.stage_destination, N'Custom destination') AS destination,
                c.hub_city AS carrier_hub, s.demo_hold_status,
-               (SELECT location FROM dbo.shipment_route_stops
+               (SELECT stage_location FROM dbo.shipment_route_stops
                  WHERE shipment_id = s.shipment_id AND stop_sequence = 1) AS route_stop_1,
-               (SELECT location FROM dbo.shipment_route_stops
+               (SELECT stage_location FROM dbo.shipment_route_stops
                  WHERE shipment_id = s.shipment_id AND stop_sequence = 2) AS route_stop_2
           FROM dbo.shipments s
           JOIN dbo.carriers  c ON c.carrier_id = s.carrier_id

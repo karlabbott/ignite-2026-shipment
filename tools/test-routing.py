@@ -22,6 +22,7 @@ assert seattle_vicksburg == ["Denver, CO", "Dallas, TX"], seattle_vicksburg
 booger = plan_route("Seattle, WA", "Booger, AR", azure_maps_key="configured")
 assert booger.destination is not None
 assert booger.destination.name == "Booger Hollow, AR"
+assert booger.destination.stage_label == "Booger Hollow, AR"
 assert booger.destination.source == "known-location"
 assert [stop.name for stop in booger.stops] == ["Denver, CO", "Dallas, TX"]
 
@@ -34,6 +35,13 @@ assert seattle_paris[-1] in {"London, UK", "Amsterdam, Netherlands"}, seattle_pa
 
 springfield = plan_route("Springfield, Illinois", "Seattle, Washington")
 assert springfield.source == "offline-geonames"
+assert springfield.origin is not None
+assert springfield.origin.stage_label == "Springfield, IL"
+
+generic_space = plan_route("Seattle, WA", "Kepler-999z")
+assert generic_space.destination is not None
+assert generic_space.destination.name.startswith("Kepler-999z ")
+assert generic_space.destination.stage_label == "Interstellar Freight Anchorage"
 
 unknown = plan_route("Somewhere beyond the map", "Another imaginary place")
 assert unknown.stops == ()

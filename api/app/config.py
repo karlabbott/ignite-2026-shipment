@@ -44,9 +44,12 @@ class Settings:
     heartbeat_seconds: int = field(default_factory=lambda: _env_int("SHIPMENT_HEARTBEAT_SECONDS", 10))
     board_limit: int = field(default_factory=lambda: _env_int("SHIPMENT_BOARD_LIMIT", 60))
 
-    #: Per-source-IP shipment creations allowed per window. The audience will
-    #: absolutely try to break this, so it is enforced here as well as at nginx.
+    #: Per-browser shipment creations allowed per window. A separate generous
+    #: source-IP ceiling limits token rotation without punishing venue NAT.
     create_rate_limit: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_RATE_LIMIT", 5))
+    create_ip_rate_limit: int = field(
+        default_factory=lambda: _env_int("SHIPMENT_CREATE_IP_RATE_LIMIT", 120)
+    )
     create_rate_window: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_RATE_WINDOW", 60))
     create_global_limit: int = field(default_factory=lambda: _env_int("SHIPMENT_CREATE_GLOBAL_LIMIT", 240))
     loadgen_key: str = field(default_factory=lambda: _env("SHIPMENT_LOADGEN_KEY", ""))

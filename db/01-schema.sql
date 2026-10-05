@@ -30,6 +30,8 @@ CREATE TABLE dbo.shipments (
     carrier_id       INT           NOT NULL REFERENCES dbo.carriers(carrier_id),
     origin           NVARCHAR(60)  NOT NULL,
     destination      NVARCHAR(60)  NOT NULL,
+    stage_origin     NVARCHAR(100) NULL,
+    stage_destination NVARCHAR(100) NULL,
     description      NVARCHAR(120) NOT NULL DEFAULT N'General freight',
     weight_kg        DECIMAL(6,2)  NOT NULL DEFAULT 1.00,
     status           VARCHAR(20)   NOT NULL DEFAULT 'CREATED',

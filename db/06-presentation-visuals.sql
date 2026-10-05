@@ -16,12 +16,23 @@ IF COL_LENGTH('dbo.shipments', 'destination_latitude') IS NULL
     ALTER TABLE dbo.shipments ADD destination_latitude DECIMAL(9,6) NULL;
 IF COL_LENGTH('dbo.shipments', 'destination_longitude') IS NULL
     ALTER TABLE dbo.shipments ADD destination_longitude DECIMAL(9,6) NULL;
+IF COL_LENGTH('dbo.shipments', 'stage_origin') IS NULL
+    ALTER TABLE dbo.shipments ADD stage_origin NVARCHAR(100) NULL;
+IF COL_LENGTH('dbo.shipments', 'stage_destination') IS NULL
+    ALTER TABLE dbo.shipments ADD stage_destination NVARCHAR(100) NULL;
 IF COL_LENGTH('dbo.shipments', 'is_golden') IS NULL
     ALTER TABLE dbo.shipments
         ADD is_golden BIT NOT NULL
             CONSTRAINT df_shipments_is_golden DEFAULT (0);
 IF COL_LENGTH('dbo.shipments', 'demo_hold_status') IS NULL
     ALTER TABLE dbo.shipments ADD demo_hold_status VARCHAR(20) NULL;
+GO
+
+UPDATE dbo.shipments
+   SET stage_origin = COALESCE(stage_origin, origin),
+       stage_destination = COALESCE(stage_destination, destination)
+ WHERE created_by = N'seed'
+   AND (stage_origin IS NULL OR stage_destination IS NULL);
 GO
 
 IF NOT EXISTS (

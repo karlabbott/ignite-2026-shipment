@@ -15,12 +15,25 @@ CREATE TABLE dbo.shipment_route_stops (
     shipment_id    BIGINT        NOT NULL REFERENCES dbo.shipments(shipment_id),
     stop_sequence  TINYINT       NOT NULL,
     location       NVARCHAR(100) NOT NULL,
+    stage_location NVARCHAR(120) NULL,
     latitude       DECIMAL(9,6)  NOT NULL,
     longitude      DECIMAL(9,6)  NOT NULL,
     route_source   VARCHAR(24)   NOT NULL,
     CONSTRAINT uq_shipment_route_stop UNIQUE (shipment_id, stop_sequence),
     CONSTRAINT ck_route_stop_sequence CHECK (stop_sequence BETWEEN 1 AND 2)
 );
+GO
+
+IF COL_LENGTH('dbo.shipment_route_stops', 'stage_location') IS NULL
+    ALTER TABLE dbo.shipment_route_stops ADD stage_location NVARCHAR(120) NULL;
+GO
+
+UPDATE r
+   SET stage_location = r.location
+  FROM dbo.shipment_route_stops AS r
+  JOIN dbo.shipments AS s ON s.shipment_id = r.shipment_id
+ WHERE r.stage_location IS NULL
+   AND s.created_by = N'seed';
 GO
 
 /* The unique constraint already supplies the required shipment/sequence index.
