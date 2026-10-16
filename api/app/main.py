@@ -719,8 +719,10 @@ def presentation_data(
             WITH recent AS (
                 SELECT TOP (%d)
                        shipment_id, tracking_number,
-                       COALESCE(stage_origin, N'Custom origin') AS origin,
-                       COALESCE(stage_destination, N'Custom destination') AS destination,
+                       CASE WHEN is_golden = 1 THEN origin
+                            ELSE COALESCE(stage_origin, N'Custom origin') END AS origin,
+                       CASE WHEN is_golden = 1 THEN destination
+                            ELSE COALESCE(stage_destination, N'Custom destination') END AS destination,
                        status,
                        created_at, updated_at, is_golden,
                        demo_hold_status,
@@ -735,8 +737,10 @@ def presentation_data(
                 SELECT * FROM recent
                 UNION
                 SELECT shipment_id, tracking_number,
-                       COALESCE(stage_origin, N'Custom origin') AS origin,
-                       COALESCE(stage_destination, N'Custom destination') AS destination,
+                       CASE WHEN is_golden = 1 THEN origin
+                            ELSE COALESCE(stage_origin, N'Custom origin') END AS origin,
+                       CASE WHEN is_golden = 1 THEN destination
+                            ELSE COALESCE(stage_destination, N'Custom destination') END AS destination,
                        status,
                        created_at, updated_at, is_golden,
                        demo_hold_status,
@@ -748,7 +752,8 @@ def presentation_data(
                    AND destination_latitude IS NOT NULL
             )
             SELECT selected.*, r.stop_sequence,
-                   COALESCE(r.stage_location, N'Route stop') AS stop_location,
+                   CASE WHEN selected.is_golden = 1 THEN r.location
+                        ELSE COALESCE(r.stage_location, N'Route stop') END AS stop_location,
                    r.latitude AS stop_latitude, r.longitude AS stop_longitude
               FROM selected
               LEFT JOIN dbo.shipment_route_stops AS r

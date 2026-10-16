@@ -61,6 +61,11 @@ Every architectural choice serves the demo, not enterprise purity.
    SQL Server. Presenter-key endpoints can open and lock a poll, while a separate
    private controller owns fault injection, rollback, and infrastructure access.
 
+The golden-shipment spotlight and its map use the shipment's stored origin,
+destination, and route-stop locations, including for older shipments without
+stage labels. Other shipments in the presentation feed retain stage-safe labels.
+Displaying the golden route does not release its hold or advance its status.
+
 ## Layout
 
 ```

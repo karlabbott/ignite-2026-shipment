@@ -204,6 +204,30 @@ class ProjectionDb:
                     "stop_latitude": 39.7392,
                     "stop_longitude": -104.9903,
                 }
+            ] + [
+                {
+                    "shipment_id": 43,
+                    "tracking_number": "ZAV94388224",
+                    "origin": "Seattle, WA",
+                    "destination": "Paris, France",
+                    "status": "OUT_FOR_DELIVERY",
+                    "created_at": datetime.now(UTC),
+                    "updated_at": datetime.now(UTC),
+                    "is_golden": True,
+                    "demo_hold_status": "OUT_FOR_DELIVERY",
+                    "origin_latitude": 47.603229,
+                    "origin_longitude": -122.33028,
+                    "destination_latitude": 48.856895,
+                    "destination_longitude": 2.350849,
+                    "stop_sequence": sequence,
+                    "stop_location": location,
+                    "stop_latitude": latitude,
+                    "stop_longitude": longitude,
+                }
+                for sequence, location, latitude, longitude in (
+                    (1, "Toronto, Canada", 43.6532, -79.3832),
+                    (2, "London, UK", 51.5074, -0.1278),
+                )
             ]
         return [
             {
@@ -239,6 +263,21 @@ assert "N'Audience' AS created_by" in projection_db.queries[0]
 assert "COALESCE(stage_origin" in projection_db.queries[1]
 assert "COALESCE(r.stage_location" in projection_db.queries[1]
 assert "created_by" not in projection_db.queries[1]
+assert projection_db.queries[1].count("CASE WHEN is_golden = 1 THEN origin") == 2
+assert projection_db.queries[1].count("CASE WHEN is_golden = 1 THEN destination") == 2
+assert "CASE WHEN selected.is_golden = 1 THEN r.location" in projection_db.queries[1]
+golden = presentation["golden"]
+assert golden["tracking_number"] == "ZAV94388224"
+assert golden["origin"] == "Seattle, WA"
+assert golden["destination"] == "Paris, France"
+assert [point["location"] for point in golden["route_points"]] == [
+    "Seattle, WA",
+    "Toronto, Canada",
+    "London, UK",
+    "Paris, France",
+]
+assert golden["status"] == golden["hold_status"] == "OUT_FOR_DELIVERY"
+assert golden["is_held"] is True
 
 
 class AdvanceDb:
