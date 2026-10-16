@@ -232,7 +232,9 @@ for attendee_text in (
     raw_handle,
 ):
     assert attendee_text not in projected
-assert "COALESCE(s.stage_origin" in projection_db.queries[0]
+assert "s.origin AS origin" in projection_db.queries[0]
+assert "s.destination AS destination" in projection_db.queries[0]
+assert "SELECT location FROM dbo.shipment_route_stops" in projection_db.queries[0]
 assert "N'Audience' AS created_by" in projection_db.queries[0]
 assert "COALESCE(stage_origin" in projection_db.queries[1]
 assert "COALESCE(r.stage_location" in projection_db.queries[1]

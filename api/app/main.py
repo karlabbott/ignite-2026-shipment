@@ -347,27 +347,25 @@ def get_board(
         rows = db.query(
             """
             SELECT s.tracking_number, c.code AS carrier_code,
-                   COALESCE(s.stage_origin, N'Custom origin') AS origin,
-                   COALESCE(s.stage_destination, N'Custom destination') AS destination,
+                   s.origin AS origin,
+                   s.destination AS destination,
                    s.status,
                    (SELECT COUNT(*) FROM dbo.scan_events e
                      WHERE e.shipment_id = s.shipment_id) AS scan_count,
                    CASE s.status
-                       WHEN 'PICKED_UP' THEN COALESCE(s.stage_origin, N'Custom origin')
+                       WHEN 'PICKED_UP' THEN s.origin
                        WHEN 'IN_TRANSIT' THEN COALESCE(
-                           (SELECT stage_location FROM dbo.shipment_route_stops
+                           (SELECT location FROM dbo.shipment_route_stops
                              WHERE shipment_id = s.shipment_id AND stop_sequence = 1),
                            N'In transit')
                        WHEN 'AT_HUB' THEN COALESCE(
-                           (SELECT stage_location FROM dbo.shipment_route_stops
+                           (SELECT location FROM dbo.shipment_route_stops
                              WHERE shipment_id = s.shipment_id AND stop_sequence = 2),
-                           (SELECT stage_location FROM dbo.shipment_route_stops
+                           (SELECT location FROM dbo.shipment_route_stops
                              WHERE shipment_id = s.shipment_id AND stop_sequence = 1),
                            CONCAT(c.hub_city, N' Hub'))
-                       WHEN 'OUT_FOR_DELIVERY' THEN
-                           COALESCE(s.stage_destination, N'Custom destination')
-                       WHEN 'DELIVERED' THEN
-                           COALESCE(s.stage_destination, N'Custom destination')
+                       WHEN 'OUT_FOR_DELIVERY' THEN s.destination
+                       WHEN 'DELIVERED' THEN s.destination
                        ELSE NULL
                    END AS last_location,
                    (SELECT TOP 1 e.worker_host FROM dbo.scan_events e
