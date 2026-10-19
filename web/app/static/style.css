@@ -335,6 +335,8 @@ body.voting-controls main { max-width: 920px; margin: 0 auto; }
 .presenter-poll-status p:empty { display: none; }
 .poll-control-actions, .presenter-links { display: flex; flex-wrap: wrap; gap: 16px; }
 .presenter-links a { color: #006b88; text-underline-offset: 3px; }
+.presenter-key-entry { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.presenter-key-entry label { flex: 1 1 280px; min-width: 0; }
 
 .card {
   background: var(--panel);
@@ -374,6 +376,7 @@ button {
 }
 button.secondary { background: var(--panel-2); border: 1px solid var(--line); color: var(--text); }
 button:disabled { opacity: 0.55; cursor: progress; }
+body.voting-controls button:disabled { cursor: not-allowed; }
 
 .status-line { font-size: 19px; font-weight: 600; margin: 14px 0 18px; }
 

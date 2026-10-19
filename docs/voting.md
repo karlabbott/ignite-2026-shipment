@@ -4,9 +4,12 @@
 - Audience voting: `https://track.99b.org/vote`.
 - Projected voting screen: `https://dash.99b.org/?view=network`.
 
-Enter the existing presenter key in the control page. It is kept only in the
-page's password field, never in browser storage, URLs, or deployed source.
-Reloading the page requires entering it again.
+Enter the existing presenter key and click **Save key**. The page verifies it,
+then stores it in localStorage under `zava-presenter-key` and restores it after
+reload. **Forget key** removes it and locks the controls. Save only on a trusted
+device: scripts running on this origin can read localStorage. Storage is
+separate for `dash.99b.org` and `track.99b.org`. The key is never included in URLs
+or deployed source. An invalid key is rejected rather than saved.
 
 **Open voting** creates a poll. **Close voting** locks it and reveals the winner;
 neither action injects a fault. Fault injection remains a separate private

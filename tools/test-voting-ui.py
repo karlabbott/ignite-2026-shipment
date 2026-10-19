@@ -170,6 +170,7 @@ class VotingUI(unittest.TestCase):
         self.context.add_init_script("""
             localStorage.setItem("zava-failure-voter", "keep-voter-token");
             localStorage.setItem("zava-audience-client", "keep-client-token");
+            localStorage.setItem("zava-presenter-key", "keep-presenter-key");
             localStorage.setItem("zava-created-shipments-v1", JSON.stringify([{
               tracking_number: "ZAVOLD", description: "Old shipment",
               origin: "Seattle", destination: "Toronto"
@@ -185,9 +186,10 @@ class VotingUI(unittest.TestCase):
         values = self.page.evaluate("""() => [
           localStorage.getItem("zava-created-shipments-v1"),
           localStorage.getItem("zava-failure-voter"),
-          localStorage.getItem("zava-audience-client")
+          localStorage.getItem("zava-audience-client"),
+          localStorage.getItem("zava-presenter-key")
         ]""")
-        self.assertEqual(values, [None, "keep-voter-token", "keep-client-token"])
+        self.assertEqual(values, [None, "keep-voter-token", "keep-client-token", "keep-presenter-key"])
         self.poll = {**self.poll, "state": "locked"}
         expect(self.page.locator("#audience-vote-link")).to_be_hidden()
         self.poll_available = False
@@ -198,12 +200,14 @@ class VotingUI(unittest.TestCase):
         expect(self.page.locator("#audience-vote-status")).to_be_hidden()
         self.assertEqual(self.mutations, [])
 
-    def test_presenter_opens_and_locks_without_injection_or_key_storage(self):
+    def test_presenter_saves_reloads_and_forgets_key_without_injecting(self):
         self.poll = {**self.poll, "poll_id": None, "state": "closed", "total_votes": 0}
         self.page.goto(self.origin + "/voting")
         expect(self.page.locator("#presenter-poll-state")).to_have_text("No open voting")
         expect(self.page.locator("#open-voting")).to_be_disabled()
         self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
+        expect(self.page.locator("#open-voting")).to_be_enabled()
         self.page.locator("#open-voting").click()
         expect(self.page.locator("#presenter-poll-state")).to_have_text("Voting open")
         expect(self.page.locator("#open-voting")).to_be_disabled()
@@ -213,9 +217,19 @@ class VotingUI(unittest.TestCase):
         expect(self.page.locator("#close-voting")).to_be_disabled()
         expect(self.page.locator("#inject-fault")).to_be_enabled()
         self.assertEqual(self.mutations, ["/api/presenter/polls", "/api/presenter/polls/8/lock"])
-        self.assertEqual(self.page.evaluate("[localStorage.length, sessionStorage.length]"), [0, 0])
+        self.assertEqual(self.page.evaluate(
+            "localStorage.getItem('zava-presenter-key')",
+        ), "test-presenter-key")
         self.assertNotIn("test-presenter-key", self.page.url)
         self.screenshot("voting-controls.png")
+        self.page.reload()
+        expect(self.page.locator("#presenter-key")).to_have_value("test-presenter-key")
+        expect(self.page.locator("#inject-fault")).to_be_enabled()
+        self.page.locator("#presenter-key").fill("")
+        expect(self.page.locator("#forget-presenter-key")).to_be_enabled()
+        self.page.locator("#forget-presenter-key").click()
+        self.assertIsNone(self.page.evaluate("localStorage.getItem('zava-presenter-key')"))
+        expect(self.page.locator("#inject-fault")).to_be_disabled()
 
     def test_injection_is_explicit_and_disabled_for_offline_or_claimed_runner(self):
         self.poll = {
@@ -225,8 +239,13 @@ class VotingUI(unittest.TestCase):
         self.injection["runner_online"] = False
         self.page.goto(self.origin + "/voting")
         self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
         expect(self.page.locator("#injection-status")).to_contain_text("offline")
         expect(self.page.locator("#inject-fault")).to_be_disabled()
+        expect(self.page.locator("#injection-disabled-reason")).to_contain_text("offline")
+        self.assertEqual(self.page.locator("#inject-fault").evaluate(
+            "element => getComputedStyle(element).cursor",
+        ), "not-allowed")
         self.injection["runner_online"] = True
         expect(self.page.locator("#inject-fault")).to_be_enabled()
         self.assertEqual(self.mutations, [])
@@ -253,11 +272,37 @@ class VotingUI(unittest.TestCase):
             "**/api/presenter/polls/7/injection",
             lambda route: route.fulfill(status=403, json={"detail": "Invalid presenter key"}),
         )
-        self.page.locator("#close-voting").click()
+        self.page.locator("#save-presenter-key").click()
         expect(self.page.locator("#banner")).to_contain_text("Invalid presenter key")
         self.page.wait_for_timeout(250)
         expect(self.page.locator("#banner")).to_be_visible()
         self.assertEqual(self.poll["state"], "open")
+        self.assertIsNone(self.page.evaluate("localStorage.getItem('zava-presenter-key')"))
+
+    def test_slow_runner_status_is_not_discarded_by_repeated_poll_refreshes(self):
+        self.poll = {
+            **self.poll, "poll_id": 8, "state": "locked",
+            "winner_code": "delay_worker_claims",
+        }
+        self.page.add_init_script("""
+          const originalFetch = window.fetch;
+          window.fetch = async (...args) => {
+            if (String(args[0]).endsWith("/injection")) {
+              await new Promise(resolve => setTimeout(resolve, 350));
+            }
+            return originalFetch(...args);
+          };
+        """)
+        self.page.goto(self.origin + "/voting")
+        self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
+        expect(self.page.locator("#inject-fault")).to_be_enabled(timeout=2000)
+        expect(self.page.locator("#injection-disabled-reason")).to_be_hidden()
+        self.injection["runner_online"] = False
+        expect(self.page.locator("#inject-fault")).to_be_disabled(timeout=2000)
+        self.injection["runner_online"] = True
+        expect(self.page.locator("#inject-fault")).to_be_enabled(timeout=2000)
+        self.assertEqual(self.mutations, [])
 
 
 if __name__ == "__main__":

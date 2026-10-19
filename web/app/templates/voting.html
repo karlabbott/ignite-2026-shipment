@@ -14,22 +14,29 @@
       <p id="presenter-poll-winner"></p>
     </div>
 
-    <label for="presenter-key">Presenter key
-      <input id="presenter-key" type="password" autocomplete="off" spellcheck="false"
-             autocapitalize="none" aria-describedby="presenter-key-help">
-    </label>
+    <div class="presenter-key-entry">
+      <label for="presenter-key">Presenter key
+        <input id="presenter-key" type="password" autocomplete="off" spellcheck="false"
+               autocapitalize="none" aria-describedby="presenter-key-help">
+      </label>
+      <button id="save-presenter-key" type="button" disabled>Save key</button>
+      <button id="forget-presenter-key" type="button" class="secondary" disabled>Forget key</button>
+    </div>
     <p id="presenter-key-help" class="hint">
-      Your key is used only in this tab. It is not saved in browser storage or included in URLs.
+      Save verifies the key and remembers it in this browser for this site. Use only on a trusted
+      device; scripts running on this site can read browser storage. Forget key removes it.
     </p>
 
     <div class="poll-control-actions">
       <button id="open-voting" type="button" disabled>Open voting</button>
       <button id="close-voting" type="button" class="secondary" disabled>Close voting</button>
-      <button id="inject-fault" type="button" class="secondary" disabled>Inject winning fault</button>
+      <button id="inject-fault" type="button" aria-describedby="injection-disabled-reason injection-status"
+              disabled>Inject winning fault</button>
     </div>
+    <p id="injection-disabled-reason" class="hint" role="status" hidden></p>
     <p class="hint">Closing voting locks votes and reveals the winner. It never injects a fault.</p>
     <p id="injection-status" class="hint" role="status" aria-live="polite">
-      Enter your presenter key to check the private runner.
+      Save your presenter key to check the private runner.
     </p>
     <p class="presenter-links">
       <a href="/?view=network">Audience screen</a>
@@ -39,5 +46,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="/static/voting-controls.js?v=20261019-2"></script>
+  <script src="/static/voting-controls.js?v=20261019-4"></script>
 {% endblock %}
