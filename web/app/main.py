@@ -237,6 +237,18 @@ async def vote_page(request: Request) -> HTMLResponse:
     )
 
 
+@app.get("/voting", response_class=HTMLResponse, include_in_schema=False)
+async def voting_controls(request: Request) -> HTMLResponse:
+    return templates.TemplateResponse(
+        request,
+        "voting.html",
+        {
+            "brand": settings.brand,
+            "refresh_ms": settings.refresh_ms,
+        },
+    )
+
+
 # --------------------------------------------------------------------------- #
 # Health
 # --------------------------------------------------------------------------- #

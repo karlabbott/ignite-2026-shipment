@@ -2,6 +2,13 @@
 {% block title %}{{ brand }} — Track a shipment{% endblock %}
 {% block body_class %}track{% endblock %}
 
+{% block topbar_extra %}
+  <div class="audience-voting">
+    <a id="audience-vote-link" class="audience-vote-link hidden" href="/vote">Vote now</a>
+    <span id="audience-vote-status" class="audience-vote-status hidden" role="status"></span>
+  </div>
+{% endblock %}
+
 {% block content %}
   <section class="card" id="create-card">
     <h1>Ship something</h1>
@@ -68,7 +75,10 @@
   </section>
 
   <section class="card hidden" id="recent-card">
-    <h2>Your shipments</h2>
+    <div class="recent-heading">
+      <h2>Your shipments</h2>
+      <button id="clear-shipment-history" type="button" class="secondary">Clear history</button>
+    </div>
     <p class="lede">Created on this device. Select one to track it again.</p>
     <ul id="recent-shipments" class="recent-shipments"></ul>
   </section>
@@ -88,5 +98,5 @@
 {% block scripts %}
   <script>window.PREFILL = {{ prefill | tojson }};</script>
   <script src="/static/map.js?v=20260831-4"></script>
-  <script src="/static/track.js?v=20261002-2"></script>
+  <script src="/static/track.js?v=20261019-1"></script>
 {% endblock %}

@@ -10,11 +10,34 @@ const customItem = document.getElementById("custom-item");
 const customItemLabel = document.getElementById("custom-item-label");
 const recentCard = document.getElementById("recent-card");
 const recentShipments = document.getElementById("recent-shipments");
+const voteLink = document.getElementById("audience-vote-link");
+const voteStatus = document.getElementById("audience-vote-status");
 
 let tracking = null;
 let pollTimer = null;
 let previousStatus = null;
 const shipmentHistoryKey = "zava-created-shipments-v1";
+
+async function refreshVotingLink() {
+  try {
+    const poll = await getJSON("/api/poll");
+    voteLink.classList.toggle("hidden", poll.state !== "open");
+    voteStatus.classList.add("hidden");
+  } catch (err) {
+    voteLink.classList.add("hidden");
+    voteStatus.textContent = `Voting status unavailable - ${err.message}`;
+    voteStatus.classList.remove("hidden");
+  }
+}
+
+document.getElementById("clear-shipment-history").addEventListener("click", () => {
+  try {
+    localStorage.removeItem(shipmentHistoryKey);
+    renderShipmentHistory();
+  } catch (err) {
+    showBanner(`Could not clear shipment history - ${err.message}`, "error");
+  }
+});
 
 function loadShipmentHistory() {
   try {
@@ -225,4 +248,6 @@ document.getElementById("another-button").addEventListener("click", () => {
 });
 
 renderShipmentHistory();
+refreshVotingLink();
+setInterval(refreshVotingLink, window.REFRESH_MS || 3000);
 if (window.PREFILL) showResult(window.PREFILL);

@@ -119,6 +119,12 @@
           <strong id="poll-stage-label"></strong>
           <span id="poll-stage-detail"></span>
         </div>
+        <aside id="poll-join" class="poll-join hidden" aria-label="Join audience voting">
+          <img src="/static/vote-99b-qr.svg" width="320" height="320"
+               alt="Scan to vote at https://track.99b.org/vote">
+          <a href="https://track.99b.org/vote">track.99b.org/vote</a>
+          <p>Scan with your phone to vote.</p>
+        </aside>
         <div id="poll-tally" class="poll-tally"></div>
       </article>
     </section>
@@ -128,5 +134,5 @@
 {% block scripts %}
   <script>window.RETURN_URL = {{ return_url | tojson }};</script>
   <script src="/static/map.js?v=20260831-4"></script>
-  <script src="/static/dashboard.js?v=20261002-2"></script>
+  <script src="/static/dashboard.js?v=20261019-1"></script>
 {% endblock %}

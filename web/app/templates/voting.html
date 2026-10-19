@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}{{ brand }} - Voting controls{% endblock %}
+{% block body_class %}voting-controls{% endblock %}
+
+{% block content %}
+  <section class="card">
+    <span class="metric-kicker">Presenter only</span>
+    <h1>Voting controls</h1>
+    <p class="lede">Open voting for the room, then close it to reveal their choice.</p>
+
+    <div class="presenter-poll-status" role="status" aria-live="polite">
+      <strong id="presenter-poll-state">Loading poll...</strong>
+      <span id="presenter-poll-count"></span>
+      <p id="presenter-poll-winner"></p>
+    </div>
+
+    <label for="presenter-key">Presenter key
+      <input id="presenter-key" type="password" autocomplete="off" spellcheck="false"
+             autocapitalize="none" aria-describedby="presenter-key-help">
+    </label>
+    <p id="presenter-key-help" class="hint">
+      Your key is used only in this tab. It is not saved in browser storage or included in URLs.
+    </p>
+
+    <div class="poll-control-actions">
+      <button id="open-voting" type="button" disabled>Open voting</button>
+      <button id="close-voting" type="button" class="secondary" disabled>Close voting</button>
+    </div>
+    <p class="hint">Closing voting locks votes and reveals the winner. It never injects a fault.</p>
+    <p class="presenter-links">
+      <a href="/?view=network">Audience screen</a>
+      <a href="https://track.99b.org/vote" target="_blank" rel="noopener">Audience voting page</a>
+    </p>
+  </section>
+{% endblock %}
+
+{% block scripts %}
+  <script src="/static/voting-controls.js?v=20261019-1"></script>
+{% endblock %}

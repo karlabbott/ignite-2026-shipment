@@ -324,8 +324,10 @@ function renderPoll(poll) {
   const stageStatus = document.getElementById("poll-stage-status");
   const stageLabel = document.getElementById("poll-stage-label");
   const stageDetail = document.getElementById("poll-stage-detail");
+  const join = document.getElementById("poll-join");
   if (!card || !tally || !state || !displayToggle || !stageStatus || !stageLabel || !stageDetail) return;
 
+  if (join) join.classList.toggle("hidden", !poll || poll.state !== "open");
   card.classList.remove("state-open", "state-locked", "state-injected", "state-recovered");
   card.classList.toggle("active", Boolean(poll && poll.poll_id));
   if (!poll || !poll.poll_id) {
@@ -364,12 +366,13 @@ function renderPoll(poll) {
   stageStatus.classList.remove("hidden");
   stageLabel.textContent = lifecycle ? lifecycle.label : poll.state.toUpperCase();
   stageDetail.textContent = lifecycle ? lifecycle.detail : "";
-  state.textContent = `${lifecycle ? lifecycle.label : poll.state.toUpperCase()} · ${poll.total_votes} vote${poll.total_votes === 1 ? "" : "s"}`;
+  state.dataset.label = lifecycle ? lifecycle.label : poll.state.toUpperCase();
+  state.textContent = `${poll.total_votes} vote${poll.total_votes === 1 ? "" : "s"} received`;
   if (poll.state === "open") {
-    tally.innerHTML = poll.choices.map((choice) => `
+    tally.innerHTML = poll.choices.map((choice, index) => `
       <div class="poll-result concealed">
+        <span class="poll-choice-number" aria-hidden="true">${index + 1}</span>
         <strong>${escapeHTML(choice.label)}</strong>
-        <span>Results hidden</span>
       </div>`).join("");
     return;
   }

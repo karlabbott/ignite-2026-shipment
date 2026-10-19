@@ -9,6 +9,7 @@ Run:  .venv\\Scripts\\python.exe tools\\test-track-url.py
 """
 
 import os
+import asyncio
 import sys
 from pathlib import Path
 
@@ -100,6 +101,9 @@ check(
 )
 
 print()
+controls = asyncio.run(webmain.voting_controls(build_request({"host": "dash.99b.org"})))
+check("presenter voting page renders", controls.status_code, 200)
+check("presenter voting page has close control", b'id="close-voting"' in controls.body, True)
 if failures:
     print(f"FAILED: {len(failures)} check(s): {', '.join(failures)}")
     sys.exit(1)
