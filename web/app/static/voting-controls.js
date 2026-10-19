@@ -19,6 +19,11 @@ let activePresenterKey = "";
 let hasStoredPresenterKey = false;
 const PRESENTER_KEY_STORAGE = "zava-presenter-key";
 
+function needsPollReset() {
+  return presenterPoll && (presenterPoll.state === "injected" ||
+    presenterInjection && presenterInjection.state === "failed");
+}
+
 function updateVotingControls() {
   const hasKey = Boolean(activePresenterKey);
   savePresenterKey.disabled = changingPoll || savingPresenterKey || !presenterKey.value.trim();
@@ -26,10 +31,12 @@ function updateVotingControls() {
     (!presenterKey.value.trim() && !hasStoredPresenterKey);
   const state = presenterPoll && presenterPoll.state;
   const unresolved = presenterInjection &&
-    ["queued", "running", "failed"].includes(presenterInjection.state) &&
+    ["queued", "running"].includes(presenterInjection.state) &&
     !["recovered", "closed"].includes(state);
   openVoting.disabled = changingPoll || !hasKey || !presenterPoll ||
-    state === "open" || state === "injected" || unresolved;
+    state === "open" || unresolved || (state === "injected" && !presenterInjection);
+  openVoting.title = needsPollReset()
+    ? "Start fresh voting without changing the infrastructure." : "";
   closeVoting.disabled = changingPoll || !hasKey || state !== "open";
   const reason = changingPoll ? "Waiting for the current voting action to finish."
     : !hasKey ? "Save a valid presenter key to unlock the controls."
@@ -53,7 +60,7 @@ function renderInjectionStatus(injection) {
     running: injection.runner_online
       ? "Private runner is injecting the winning fault."
       : "Injection was claimed, but the runner is offline. Inspect its log; do not retry blindly.",
-    succeeded: "Winning fault injected. Use the reviewed private repair after troubleshooting.",
+    succeeded: "Winning fault injected. You can open fresh voting; it does not repair the fault.",
     failed: "Injection failed or expired. A partial fault may remain. Inspect the private runner log before continuing.",
   }[injection.state] || (injection.runner_online
     ? "Private runner online. Close voting to select a fault, then explicitly inject it."
@@ -66,7 +73,7 @@ function renderPresenterPoll(poll) {
   document.getElementById("presenter-poll-state").textContent = {
     open: "Voting open",
     locked: "Voting closed",
-    injected: "Fault active",
+    injected: "Fault injected",
     recovered: "Service recovered",
     closed: "No open voting",
   }[poll.state] || poll.state;
@@ -131,8 +138,13 @@ async function refreshPresenterPoll() {
 async function changeVoting(action) {
   if (changingPoll || !activePresenterKey || !presenterPoll) return;
   if (action === "lock" && presenterPoll.state !== "open") return;
-  if (action === "open" && ["open", "injected"].includes(presenterPoll.state)) return;
+  if (action === "open" && openVoting.disabled) return;
   if (action === "inject" && injectFault.disabled) return;
+  const resetPrevious = action === "open" && needsPollReset();
+  if (resetPrevious && !window.confirm(
+    "Open fresh voting? This closes the previous poll record but does not repair or undo " +
+    "its fault. Repair the previous fault before injecting another one.",
+  )) return;
   const path = action === "open"
     ? "/api/presenter/polls"
     : `/api/presenter/polls/${presenterPoll.poll_id}/${action}`;
@@ -141,14 +153,25 @@ async function changeVoting(action) {
   if (action === "inject") injectionStatus.textContent = "Requesting the winning fault...";
   updateVotingControls();
   try {
+    const headers = {"x-zava-presenter-key": activePresenterKey};
+    if (resetPrevious) {
+      const previous = await getJSON(`/api/presenter/polls/${presenterPoll.poll_id}/state`, {
+        method: "POST",
+        headers: {...headers, "content-type": "application/json"},
+        body: JSON.stringify({state: "closed"}),
+      });
+      presenterInjection = null;
+      renderPresenterPoll(previous);
+    }
     const poll = await getJSON(path, {
       method: "POST",
-      headers: {"x-zava-presenter-key": activePresenterKey},
+      headers,
     });
     if (action === "inject") renderInjectionStatus(poll);
     else {
       presenterInjection = null;
       renderPresenterPoll(poll);
+      if (action === "open") injectionStatus.textContent = "Fresh voting opened. No fault has been requested.";
     }
     clearBanner();
   } catch (err) {

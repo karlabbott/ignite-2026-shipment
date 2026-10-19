@@ -102,6 +102,7 @@ class VotingUI(unittest.TestCase):
             self.mutations.append(path)
             self.assertEqual(request.headers.get("x-zava-presenter-key"), "test-presenter-key")
             if path == "/api/presenter/polls":
+                self.injection = {"runner_online": True, "state": None}
                 self.poll = {
                     "poll_id": 8, "state": "open", "total_votes": 0,
                     "winner_code": None, "choices": CHOICES,
@@ -115,6 +116,9 @@ class VotingUI(unittest.TestCase):
                 payload = self.injection
                 route.fulfill(status=status, json=payload)
                 return
+            elif path == "/api/presenter/polls/7/state":
+                self.assertEqual(request.post_data_json, {"state": "closed"})
+                self.poll = {**self.poll, "state": "closed"}
             else:
                 self.fail("Unexpected mutation: " + path)
             payload = self.poll
@@ -259,7 +263,33 @@ class VotingUI(unittest.TestCase):
         self.injection["state"] = "failed"
         expect(self.page.locator("#injection-status")).to_contain_text("partial fault")
         expect(self.page.locator("#inject-fault")).to_be_disabled()
+        expect(self.page.locator("#open-voting")).to_be_enabled()
+
+    def test_reopening_after_repair_requires_confirmation_and_never_injects(self):
+        self.poll = {
+            **self.poll, "state": "injected", "winner_code": "delay_worker_claims",
+        }
+        self.injection["state"] = "running"
+        self.page.goto(self.origin + "/voting")
+        self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
         expect(self.page.locator("#open-voting")).to_be_disabled()
+        self.injection["state"] = "succeeded"
+        expect(self.page.locator("#open-voting")).to_be_enabled()
+        expect(self.page.locator("#open-voting")).to_have_text("Open voting")
+        self.page.once("dialog", lambda dialog: dialog.dismiss())
+        self.page.locator("#open-voting").click()
+        self.assertEqual(self.mutations, [])
+        self.assertEqual(self.poll["state"], "injected")
+        self.page.once("dialog", lambda dialog: dialog.accept())
+        self.page.locator("#open-voting").click()
+        expect(self.page.locator("#presenter-poll-state")).to_have_text("Voting open")
+        self.assertEqual(self.mutations, [
+            "/api/presenter/polls/7/state", "/api/presenter/polls",
+        ])
+        self.assertEqual(self.poll["poll_id"], 8)
+        self.assertEqual(self.poll["total_votes"], 0)
+        expect(self.page.locator("#inject-fault")).to_be_disabled()
 
     def test_presenter_authentication_error_survives_status_refresh(self):
         self.page.goto(self.origin + "/voting")

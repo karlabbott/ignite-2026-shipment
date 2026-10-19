@@ -16,7 +16,12 @@ neither action injects a fault. Fault injection remains a separate private
 operation: after closing, click **Inject winning fault**. It queues exactly one
 request for that locked poll; it does not send commands or Azure/SSH credentials
 to the web server. Opening another poll creates a fresh vote, not a continuation of the
-previous tally. Open voting is disabled while a poll is open or a fault is active.
+previous tally. **Open voting** is also available after fault injection, for
+both rehearsal and stage use. Its confirmation warns that it closes the previous
+poll record and opens fresh voting without repairing or undoing the fault.
+Cancelling leaves the existing poll unchanged. Repair the previous fault before
+injecting another one. A queued or running injector must finish before another
+poll can be opened.
 
 ## Private fault runner
 
@@ -39,11 +44,12 @@ Requests require presenter authentication, the latest poll must be locked,
 and an online runner is required. Duplicate clicks do not create another job.
 Unclaimed requests expire after 30 seconds. Claimed jobs are never automatically
 replayed, including after a runner crash. New voting is blocked while an
-injection or unresolved failure is pending. A failed injector may have partially
+injection is queued or running. A failed injector may have partially
 changed the estate: inspect the private log and use the corresponding reviewed
 repair, not a blind retry. If a repair completes after the injector failed before
-recording the poll as injected, explicitly resolve the poll lifecycle only after
-confirming recovery.
+recording the poll as injected, confirm recovery before injecting the next
+poll's winner. A crashed runner that still owns a running job requires private
+inspection and resolution; the page does not silently replay or bypass it.
 
 Normal rehearsal reset does not require snapshots. The reviewed repairs resume
 the worker, remove the fault-specific packet-loss rules, or restore the original
