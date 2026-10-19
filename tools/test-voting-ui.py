@@ -86,6 +86,7 @@ class VotingUI(unittest.TestCase):
             "winner_code": None, "choices": CHOICES,
         }
         self.poll_available = True
+        self.injection = {"runner_online": True, "state": None}
         self.mutations = []
         self.page.route("**/api/**", self.api)
 
@@ -109,12 +110,20 @@ class VotingUI(unittest.TestCase):
                 self.poll = {
                     **self.poll, "state": "locked", "winner_code": "freeze_azurelinux",
                 }
+            elif path == "/api/presenter/polls/8/inject":
+                self.injection = {**self.injection, "state": "queued"}
+                payload = self.injection
+                route.fulfill(status=status, json=payload)
+                return
             else:
                 self.fail("Unexpected mutation: " + path)
             payload = self.poll
         elif path == "/api/poll":
             status = 200 if self.poll_available else 503
             payload = self.poll if self.poll_available else {"detail": "Poll unavailable"}
+        elif path.endswith("/injection"):
+            self.assertEqual(request.headers.get("x-zava-presenter-key"), "test-presenter-key")
+            payload = self.injection
         else:
             payload = {
                 "/api/estate": {"tiers": [], "degraded": False},
@@ -202,16 +211,46 @@ class VotingUI(unittest.TestCase):
         expect(self.page.locator("#presenter-poll-state")).to_have_text("Voting closed")
         expect(self.page.locator("#presenter-poll-winner")).to_contain_text("Freeze the Azure Linux worker")
         expect(self.page.locator("#close-voting")).to_be_disabled()
+        expect(self.page.locator("#inject-fault")).to_be_enabled()
         self.assertEqual(self.mutations, ["/api/presenter/polls", "/api/presenter/polls/8/lock"])
         self.assertEqual(self.page.evaluate("[localStorage.length, sessionStorage.length]"), [0, 0])
         self.assertNotIn("test-presenter-key", self.page.url)
         self.screenshot("voting-controls.png")
+
+    def test_injection_is_explicit_and_disabled_for_offline_or_claimed_runner(self):
+        self.poll = {
+            **self.poll, "poll_id": 8, "state": "locked",
+            "winner_code": "freeze_azurelinux",
+        }
+        self.injection["runner_online"] = False
+        self.page.goto(self.origin + "/voting")
+        self.page.locator("#presenter-key").fill("test-presenter-key")
+        expect(self.page.locator("#injection-status")).to_contain_text("offline")
+        expect(self.page.locator("#inject-fault")).to_be_disabled()
+        self.injection["runner_online"] = True
+        expect(self.page.locator("#inject-fault")).to_be_enabled()
+        self.assertEqual(self.mutations, [])
+        self.page.locator("#inject-fault").click()
+        expect(self.page.locator("#injection-status")).to_contain_text("Waiting")
+        expect(self.page.locator("#inject-fault")).to_be_disabled()
+        expect(self.page.locator("#open-voting")).to_be_disabled()
+        self.assertEqual(self.mutations, ["/api/presenter/polls/8/inject"])
+        self.injection["state"] = "running"
+        expect(self.page.locator("#injection-status")).to_contain_text("injecting")
+        self.injection["state"] = "failed"
+        expect(self.page.locator("#injection-status")).to_contain_text("partial fault")
+        expect(self.page.locator("#inject-fault")).to_be_disabled()
+        expect(self.page.locator("#open-voting")).to_be_disabled()
 
     def test_presenter_authentication_error_survives_status_refresh(self):
         self.page.goto(self.origin + "/voting")
         self.page.locator("#presenter-key").fill("incorrect-test-key")
         self.page.route(
             "**/api/presenter/polls/7/lock",
+            lambda route: route.fulfill(status=403, json={"detail": "Invalid presenter key"}),
+        )
+        self.page.route(
+            "**/api/presenter/polls/7/injection",
             lambda route: route.fulfill(status=403, json={"detail": "Invalid presenter key"}),
         )
         self.page.locator("#close-voting").click()

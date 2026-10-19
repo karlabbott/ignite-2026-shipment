@@ -33,6 +33,8 @@ from .db import Database, DatabaseUnavailable
 from .models import (
     BoardRow,
     FailurePollState,
+    FailureRunner,
+    FailureInjectionResult,
     FailureVote,
     RoutePoint,
     ScanEvent,
@@ -934,6 +936,8 @@ def open_failure_poll(
     require_presenter(request)
     try:
         result = db.query_one("EXEC dbo.usp_open_failure_poll")
+        if not result or not result["opened"]:
+            raise HTTPException(status_code=409, detail="Repair or resolve the active fault before opening another poll")
         return _failure_poll(db, result["poll_id"])
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc
@@ -993,6 +997,89 @@ def set_failure_poll_state(
                 detail="Invalid poll state transition",
             )
         return _failure_poll(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+def _injection_status(db: Database, poll_id: int) -> dict[str, Any]:
+    runner = db.query_one("""
+        SELECT CAST(CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.failure_runners
+            WHERE last_seen > DATEADD(second, -15, SYSUTCDATETIME())
+        ) THEN 1 ELSE 0 END AS BIT) AS online
+    """)
+    job = db.query_one(
+        """
+        SELECT j.state, CAST(CASE WHEN EXISTS (
+            SELECT 1 FROM dbo.failure_runners r
+            WHERE r.runner_id = j.runner_id
+              AND r.last_seen > DATEADD(second, -15, SYSUTCDATETIME())
+        ) THEN 1 ELSE 0 END AS BIT) AS runner_online
+        FROM dbo.failure_injection_jobs j WHERE j.poll_id = %s
+        """, (poll_id,)
+    )
+    online = job["runner_online"] if job and job["state"] == "running" else runner["online"]
+    return {"runner_online": bool(online), "state": job["state"] if job else None}
+
+
+@app.get("/api/presenter/polls/{poll_id}/injection", tags=["presenter"])
+def failure_injection_status(
+    poll_id: int, request: Request, db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        return _injection_status(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presenter/polls/{poll_id}/inject", tags=["presenter"])
+def request_failure_injection(
+    poll_id: int, request: Request, db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        result = db.query_one("EXEC dbo.usp_request_failure_injection %s", (poll_id,))
+        reason = result["reason"]
+        if reason not in ("queued", "already_requested"):
+            raise HTTPException(
+                status_code=503 if reason == "runner_offline" else 409,
+                detail={
+                    "runner_offline": "Private runner is offline. No fault was requested.",
+                    "poll_not_locked": "Only the latest locked poll can request its winning fault.",
+                    "fault_unresolved": "Repair or resolve the existing fault first.",
+                }[reason],
+            )
+        return _injection_status(db, poll_id)
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presenter/runner/claim", tags=["presenter"])
+def claim_failure_injection(
+    runner: FailureRunner, request: Request, db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        return db.query_one("EXEC dbo.usp_claim_failure_injection %s", (str(runner.runner_id),))
+    except DatabaseUnavailable as exc:
+        raise _db_error(exc) from exc
+
+
+@app.post("/api/presenter/polls/{poll_id}/injection/result", tags=["presenter"])
+def finish_failure_injection(
+    poll_id: int, result: FailureInjectionResult, request: Request,
+    db: Database = Depends(require_db),
+) -> dict[str, Any]:
+    require_presenter(request)
+    try:
+        updated = db.query_one(
+            "EXEC dbo.usp_finish_failure_injection %s, %s, %s",
+            (poll_id, str(result.runner_id), result.succeeded),
+        )
+        if not updated or not updated["updated"]:
+            raise HTTPException(status_code=409, detail="This runner does not own an active injection")
+        return _injection_status(db, poll_id)
     except DatabaseUnavailable as exc:
         raise _db_error(exc) from exc
 

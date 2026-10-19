@@ -399,6 +399,37 @@ async def update_poll_state(poll_id: int, request: Request) -> JSONResponse:
     return JSONResponse(payload, status_code=code)
 
 
+@app.get("/api/presenter/polls/{poll_id}/injection", tags=["presenter"])
+async def injection_status(poll_id: int, request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "GET", f"/api/presenter/polls/{poll_id}/injection", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presenter/polls/{poll_id}/inject", tags=["presenter"])
+async def inject_poll(poll_id: int, request: Request) -> JSONResponse:
+    code, payload = await call_api(
+        "POST", f"/api/presenter/polls/{poll_id}/inject", forward_from=request
+    )
+    return JSONResponse(payload, status_code=code)
+
+
+@app.post("/api/presenter/runner/claim", tags=["presenter"])
+@app.post("/api/presenter/polls/{poll_id}/injection/result", tags=["presenter"])
+async def runner_operation(request: Request, poll_id: int | None = None) -> JSONResponse:
+    try:
+        body = await request.json()
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Expected a JSON body") from None
+    path = (
+        "/api/presenter/runner/claim" if poll_id is None
+        else f"/api/presenter/polls/{poll_id}/injection/result"
+    )
+    code, payload = await call_api("POST", path, json_body=body, forward_from=request)
+    return JSONResponse(payload, status_code=code)
+
+
 @app.get("/api/shipments/{tracking}", tags=["shipments"])
 async def shipment(tracking: str) -> JSONResponse:
     code, payload = await call_api("GET", f"/api/shipments/{tracking.strip().upper()[:20]}")

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
@@ -126,6 +127,14 @@ class FailureVote(BaseModel):
 
 class FailurePollState(BaseModel):
     state: Literal["injected", "recovered", "closed"]
+
+
+class FailureRunner(BaseModel):
+    runner_id: UUID
+
+
+class FailureInjectionResult(FailureRunner):
+    succeeded: bool
 
 
 class Stats(BaseModel):

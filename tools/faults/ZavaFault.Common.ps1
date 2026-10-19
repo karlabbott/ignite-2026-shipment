@@ -5,10 +5,17 @@ function Invoke-ZavaAdminScript {
         [string]$Script,
         [Parameter(Mandatory)]
         [string]$SuccessMarker,
-        [string]$SubscriptionId = '1a0e0107-9711-458a-aed9-a21d2797109a',
+        [string]$SubscriptionId = '',
         [string]$ResourceGroup = 'rg-zava-rehearsal-wus2',
         [string]$AdminVm = 'zava-cutover-admin'
     )
+
+    if (-not $SubscriptionId) {
+        $SubscriptionId = (az account show --query id --output tsv --only-show-errors).Trim()
+        if ($LASTEXITCODE -ne 0 -or -not $SubscriptionId) {
+            throw 'Unable to resolve the active Azure subscription.'
+        }
+    }
 
     az account set --subscription $SubscriptionId
     if ($LASTEXITCODE -ne 0) {

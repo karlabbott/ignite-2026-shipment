@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [string]$SubscriptionId = '1a0e0107-9711-458a-aed9-a21d2797109a',
+    [string]$SubscriptionId = '',
     [string]$ResourceGroup = 'rg-zava-rehearsal-wus2',
     [string]$AdminVm = 'zava-cutover-admin',
     [string]$DatabaseAddress = '192.168.90.11'

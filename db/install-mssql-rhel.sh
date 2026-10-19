@@ -106,6 +106,9 @@ sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/06-presentati
 log "enabling multi-worker identity and audience voting"
 sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/07-agentic-demo.sql"
 
+log "enabling private presenter fault requests"
+sqlcmd -S localhost -U sa -P "${SA_PASSWORD}" -C -b -i "${ROOT}/db/08-private-fault-runner.sql"
+
 # The db tier has no Python service, so its heartbeat is written once here and
 # refreshed by a lightweight timer -- see db/shipment-db-heartbeat.*
 log "installing the database heartbeat timer"
