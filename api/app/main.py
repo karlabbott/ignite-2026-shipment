@@ -1090,7 +1090,7 @@ def release_golden_shipment(
     db: Database = Depends(require_db),
 ) -> dict[str, Any]:
     """Release the held continuity shipment after the Azure endpoint returns."""
-    if not trusted_load_generator(request):
+    if not trusted_load_generator(request) and not trusted_presenter(request):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Presenter key required")
     try:
         db.execute("EXEC dbo.usp_release_golden_shipment")

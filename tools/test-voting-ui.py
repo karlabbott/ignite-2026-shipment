@@ -87,6 +87,8 @@ class VotingUI(unittest.TestCase):
         }
         self.poll_available = True
         self.injection = {"runner_online": True, "state": None}
+        self.golden = None
+        self.golden_available = True
         self.mutations = []
         self.page.route("**/api/**", self.api)
 
@@ -119,6 +121,14 @@ class VotingUI(unittest.TestCase):
             elif path == "/api/presenter/polls/7/state":
                 self.assertEqual(request.post_data_json, {"state": "closed"})
                 self.poll = {**self.poll, "state": "closed"}
+            elif path == "/api/presentation/golden/release":
+                self.assertNotIn("x-zava-loadgen-key", request.headers)
+                self.golden = {**self.golden, "is_held": False}
+                route.fulfill(json={
+                    "released": True, "tracking_number": self.golden["tracking_number"],
+                    "status": self.golden["status"],
+                })
+                return
             else:
                 self.fail("Unexpected mutation: " + path)
             payload = self.poll
@@ -128,13 +138,17 @@ class VotingUI(unittest.TestCase):
         elif path.endswith("/injection"):
             self.assertEqual(request.headers.get("x-zava-presenter-key"), "test-presenter-key")
             payload = self.injection
+        elif path == "/api/presentation":
+            status = 200 if self.golden_available else 503
+            payload = {"golden": self.golden, "shipments": []} if self.golden_available else {
+                "detail": "Golden shipment unavailable",
+            }
         else:
             payload = {
                 "/api/estate": {"tiers": [], "degraded": False},
                 "/api/stats": {"total": 0, "in_flight": 0, "delivered": 0,
                                "queue_depth": 0, "scans_last_5m": 0},
                 "/api/board": [],
-                "/api/presentation": {"golden": None, "shipments": []},
             }[path]
         route.fulfill(status=status, json=payload)
 
@@ -332,6 +346,61 @@ class VotingUI(unittest.TestCase):
         expect(self.page.locator("#inject-fault")).to_be_disabled(timeout=2000)
         self.injection["runner_online"] = True
         expect(self.page.locator("#inject-fault")).to_be_enabled(timeout=2000)
+        self.assertEqual(self.mutations, [])
+
+    def test_golden_release_requires_key_and_confirmation_without_changing_voting(self):
+        self.poll = {**self.poll, "poll_id": None, "state": "closed"}
+        self.injection["runner_online"] = False
+        self.golden = {
+            "tracking_number": "ZAV94388224", "status": "OUT_FOR_DELIVERY", "is_held": True,
+        }
+        self.page.goto(self.origin + "/voting")
+        button = self.page.locator("#release-golden")
+        expect(self.page.locator("#golden-shipment-status")).to_contain_text("held")
+        expect(button).to_be_disabled()
+        self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
+        expect(button).to_be_enabled()
+        self.screenshot("golden-release-controls.png")
+        self.page.once("dialog", lambda dialog: dialog.dismiss())
+        button.click()
+        self.assertEqual(self.mutations, [])
+        self.page.once("dialog", lambda dialog: dialog.accept())
+        button.click()
+        expect(self.page.locator("#golden-shipment-status")).to_contain_text("awaiting worker delivery")
+        expect(button).to_be_disabled()
+        self.assertEqual(self.mutations, ["/api/presentation/golden/release"])
+        self.assertEqual(self.poll["state"], "closed")
+        self.golden["status"] = "DELIVERED"
+        expect(self.page.locator("#golden-shipment-status")).to_contain_text("DELIVERED")
+        self.page.reload()
+        expect(button).to_be_disabled()
+        self.assertEqual(self.mutations, ["/api/presentation/golden/release"])
+
+    def test_golden_status_failure_disables_release_and_release_error_is_visible(self):
+        self.golden = {
+            "tracking_number": "ZAV94388224", "status": "OUT_FOR_DELIVERY", "is_held": True,
+        }
+        self.page.goto(self.origin + "/voting")
+        self.page.locator("#presenter-key").fill("test-presenter-key")
+        self.page.locator("#save-presenter-key").click()
+        button = self.page.locator("#release-golden")
+        expect(button).to_be_enabled()
+        self.golden_available = False
+        expect(self.page.locator("#golden-shipment-status")).to_contain_text("unavailable")
+        expect(button).to_be_disabled()
+        self.golden_available = True
+        expect(button).to_be_enabled()
+        self.page.route(
+            "**/api/presentation/golden/release",
+            lambda route: route.fulfill(status=503, json={"detail": "Database unavailable"}),
+        )
+        self.page.once("dialog", lambda dialog: dialog.accept())
+        button.click()
+        expect(self.page.locator("#banner")).to_contain_text("Database unavailable")
+        self.page.wait_for_timeout(250)
+        expect(self.page.locator("#banner")).to_be_visible()
+        self.assertTrue(self.golden["is_held"])
         self.assertEqual(self.mutations, [])
 
 

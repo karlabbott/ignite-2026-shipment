@@ -24,12 +24,15 @@ def request(
     address: str = "203.0.113.10",
     token: str = "",
     loadgen_key: str = "",
+    presenter_key: str = "",
 ) -> Request:
     headers = []
     if token:
         headers.append((b"x-zava-client-token", token.encode()))
     if loadgen_key:
         headers.append((b"x-zava-loadgen-key", loadgen_key.encode()))
+    if presenter_key:
+        headers.append((b"x-zava-presenter-key", presenter_key.encode()))
     return Request(
         {
             "type": "http",
@@ -312,6 +315,34 @@ advanced = main.advance_shipment(
 )
 assert advanced["queued"] is True
 assert advance_db.queued
+
+class ReleaseDb:
+    def __init__(self) -> None:
+        self.released = False
+
+    def execute(self, sql: str) -> None:
+        assert sql == "EXEC dbo.usp_release_golden_shipment"
+        self.released = True
+
+    def query_one(self, sql: str) -> dict[str, Any]:
+        assert self.released
+        return {"tracking_number": "ZAV94388224", "status": "OUT_FOR_DELIVERY"}
+
+
+main.settings = replace(main.settings, presenter_key="test-presenter-key")
+release_db = ReleaseDb()
+for unauthorized in (request(), request(presenter_key="incorrect"), request(loadgen_key="incorrect")):
+    expect_http(403, lambda: main.release_golden_shipment(unauthorized, release_db))
+assert not release_db.released
+for authorized in (
+    request(presenter_key="test-presenter-key"), request(loadgen_key="test-loadgen-key"),
+):
+    release_db = ReleaseDb()
+    released = main.release_golden_shipment(authorized, release_db)
+    assert release_db.released
+    assert released == {
+        "released": True, "tracking_number": "ZAV94388224", "status": "OUT_FOR_DELIVERY",
+    }
 
 main.settings = original_settings
 print("All API security checks passed.")

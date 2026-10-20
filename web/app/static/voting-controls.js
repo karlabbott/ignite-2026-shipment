@@ -8,6 +8,11 @@ const closeVoting = document.getElementById("close-voting");
 const injectFault = document.getElementById("inject-fault");
 const injectionStatus = document.getElementById("injection-status");
 const injectionReason = document.getElementById("injection-disabled-reason");
+const releaseGolden = document.getElementById("release-golden");
+const goldenStatus = document.getElementById("golden-shipment-status");
+let goldenShipment = null;
+let refreshingGolden = false;
+let goldenRequest = 0;
 let presenterPoll = null;
 let presenterInjection = null;
 let changingPoll = false;
@@ -38,6 +43,10 @@ function updateVotingControls() {
   openVoting.title = needsPollReset()
     ? "Start fresh voting without changing the infrastructure." : "";
   closeVoting.disabled = changingPoll || !hasKey || state !== "open";
+  releaseGolden.disabled = changingPoll || savingPresenterKey || !hasKey ||
+    !goldenShipment || !goldenShipment.is_held;
+  releaseGolden.title = !hasKey ? "Save a valid presenter key to release the shipment."
+    : goldenShipment && !goldenShipment.is_held ? "The golden shipment is no longer held." : "";
   const reason = changingPoll ? "Waiting for the current voting action to finish."
     : !hasKey ? "Save a valid presenter key to unlock the controls."
     : !presenterPoll ? "Waiting for voting status."
@@ -51,6 +60,58 @@ function updateVotingControls() {
   injectFault.title = reason || "Inject this poll's winning fault";
   injectionReason.textContent = reason;
   injectionReason.hidden = !reason;
+}
+
+async function refreshGoldenShipment() {
+  if (changingPoll || refreshingGolden) return;
+  refreshingGolden = true;
+  const request = ++goldenRequest;
+  try {
+    const presentation = await getJSON("/api/presentation?limit=1", {
+      cache: "no-store", signal: AbortSignal.timeout(10000),
+    });
+    if (request !== goldenRequest) return;
+    goldenShipment = presentation.golden;
+    goldenStatus.textContent = !goldenShipment ? "No golden shipment configured."
+      : `${goldenShipment.tracking_number}: ${goldenShipment.status} - ${
+        goldenShipment.is_held ? "held"
+          : goldenShipment.status === "DELIVERED" ? "delivered" : "released; awaiting worker delivery"}.`;
+  } catch (err) {
+    if (request !== goldenRequest) return;
+    goldenShipment = null;
+    goldenStatus.textContent = `Could not read golden shipment status - ${err.message}`;
+  } finally {
+    refreshingGolden = false;
+    updateVotingControls();
+  }
+}
+
+async function releaseGoldenShipment() {
+  if (releaseGolden.disabled || !window.confirm(
+    `Release ${goldenShipment.tracking_number}? The hold will be removed and the worker can complete delivery.`,
+  )) return;
+  changingPoll = true;
+  ++pollRequest;
+  ++goldenRequest;
+  goldenShipment = null;
+  goldenStatus.textContent = "Releasing the golden shipment...";
+  updateVotingControls();
+  try {
+    const result = await getJSON("/api/presentation/golden/release", {
+      method: "POST", headers: {"x-zava-presenter-key": activePresenterKey},
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!result.released) throw new Error("The API did not confirm release.");
+    goldenStatus.textContent = `${result.tracking_number}: released. Checking worker delivery status...`;
+    clearBanner();
+  } catch (err) {
+    goldenStatus.textContent = `Release was not confirmed - ${err.message}`;
+    showBanner(`Could not confirm golden shipment release - ${err.message}`, "error");
+  } finally {
+    changingPoll = false;
+    updateVotingControls();
+    refreshGoldenShipment();
+  }
 }
 
 function renderInjectionStatus(injection) {
@@ -244,8 +305,13 @@ forgetPresenterKey.addEventListener("click", () => {
 openVoting.addEventListener("click", () => changeVoting("open"));
 closeVoting.addEventListener("click", () => changeVoting("lock"));
 injectFault.addEventListener("click", () => changeVoting("inject"));
+releaseGolden.addEventListener("click", releaseGoldenShipment);
 refreshPresenterPoll();
-setInterval(refreshPresenterPoll, window.REFRESH_MS || 3000);
+refreshGoldenShipment();
+setInterval(() => {
+  refreshPresenterPoll();
+  refreshGoldenShipment();
+}, window.REFRESH_MS || 3000);
 try {
   const savedKey = localStorage.getItem(PRESENTER_KEY_STORAGE);
   if (savedKey) {

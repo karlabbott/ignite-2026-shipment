@@ -38,6 +38,17 @@
     <p id="injection-status" class="hint" role="status" aria-live="polite">
       Save your presenter key to check the private runner.
     </p>
+
+    <h2>Golden shipment</h2>
+    <p id="golden-shipment-status" class="hint" role="status" aria-live="polite">
+      Loading golden shipment...
+    </p>
+    <div class="poll-control-actions">
+      <button id="release-golden" type="button" aria-describedby="golden-shipment-status"
+              disabled>Release golden shipment</button>
+    </div>
+    <p class="hint">Removes the hold only. The worker completes delivery normally; voting is unchanged.</p>
+
     <p class="presenter-links">
       <a href="/?view=network">Audience screen</a>
       <a href="https://track.99b.org/vote" target="_blank" rel="noopener">Audience voting page</a>
@@ -46,5 +57,5 @@
 {% endblock %}
 
 {% block scripts %}
-  <script src="/static/voting-controls.js?v=20261019-5"></script>
+  <script src="/static/voting-controls.js?v=20261020-1"></script>
 {% endblock %}

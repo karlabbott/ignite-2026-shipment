@@ -11,6 +11,15 @@ device: scripts running on this origin can read localStorage. Storage is
 separate for `dash.99b.org` and `track.99b.org`. The key is never included in URLs
 or deployed source. An invalid key is rejected rather than saved.
 
+**Release golden shipment** uses the same saved presenter key and asks for
+confirmation before removing the golden shipment's hold. The page shows its
+live hold and delivery status; the button is disabled without a verified key,
+while an action is pending, or when no held golden shipment is available.
+Release does not force delivery, change voting, or inject a fault: normal worker
+processing completes the delivery. This control appears only on `/voting`, not
+the audience's `/vote` page. The existing authenticated generator release path
+continues to work.
+
 **Open voting** creates a poll. **Close voting** locks it and reveals the winner;
 neither action injects a fault. Fault injection remains a separate private
 operation: after closing, click **Inject winning fault**. It queues exactly one
