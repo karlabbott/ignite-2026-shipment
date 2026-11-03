@@ -1,8 +1,15 @@
-# Zava Logistics — Shipment Tracking
+# Caldova — Shipment Tracking
 
 A deliberately small, stage-legible shipment-tracking application split across four
 Linux VMs, built for the Microsoft Ignite 2026 breakout on migrating a mixed-distro
 Linux estate from on-premises Hyper-V to Azure.
+
+Companion automation:
+[Caldova Observability as Code](https://github.com/karlabbott/ignite-2026-caldova-observability).
+
+Caldova is the demonstration company name. Existing tracking numbers, resource
+names, authentication headers and deployment commands retain their technical
+identifiers so the estate and its historical shipment records remain compatible.
 
 The application exists so that a migration is **visible** rather than described:
 each tier reports which host, which distro and which platform served the request,

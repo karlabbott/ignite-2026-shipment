@@ -8,7 +8,7 @@ param(
 )
 
 # This foreground helper runs on the operator host. The sustained stage stream
-# runs as zava-loadgen-24.service on sles-api; see docs/load-generation.md.
+# runs as caldova-loadgen-24.service on sles-api; see docs/load-generation.md.
 $ErrorActionPreference = 'Stop'
 $generator = Join-Path $PSScriptRoot 'loadgen.py'
 

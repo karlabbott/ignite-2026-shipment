@@ -76,7 +76,7 @@ sudo -u estate ssh `$ssh_options estate@192.168.90.13 'sudo systemctl stop nginx
 
 if (Test-VmRunning -Name 'sles-api') {
     $stopCommands.Add(@"
-sudo -u estate ssh `$ssh_options estate@192.168.90.12 'sudo systemctl stop zava-loadgen-24.service >/dev/null 2>&1 || true; if pgrep -af "[l]oadgen.py"; then echo "A load generator is still running." >&2; exit 1; fi; sudo systemctl stop shipment-api.service; test "`$(systemctl is-active shipment-api.service || true)" = inactive; sudo sync; echo API_AND_LOADGEN_STOPPED'
+sudo -u estate ssh `$ssh_options estate@192.168.90.12 'sudo systemctl stop caldova-loadgen-24.service >/dev/null 2>&1 || true; if pgrep -af "[l]oadgen.py"; then echo "A load generator is still running." >&2; exit 1; fi; sudo systemctl stop shipment-api.service; test "`$(systemctl is-active shipment-api.service || true)" = inactive; sudo sync; echo API_AND_LOADGEN_STOPPED'
 "@)
     $requiredMarkers.Add('API_AND_LOADGEN_STOPPED')
 }

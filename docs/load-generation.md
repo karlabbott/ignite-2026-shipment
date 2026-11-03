@@ -1,7 +1,7 @@
 # Stage traffic generation
 
 The sustained rehearsal generator runs on **`sles-api` (`192.168.90.12`)** as
-`zava-loadgen-24.service`. It does not run on `zava-cutover-admin`; that VM is
+`caldova-loadgen-24.service`. It does not run on `zava-cutover-admin`; that VM is
 only the private SSH control hop.
 
 Run the control commands from the authenticated Windows operator shell. The
@@ -18,7 +18,7 @@ sudo -u estate ssh \
   -o StrictHostKeyChecking=accept-new \
   estate@192.168.90.12 \
   "sudo systemd-run \
-    --unit=zava-loadgen-24 \
+    --unit=caldova-loadgen-24 \
     --collect \
     --property=Type=exec \
     --property=WorkingDirectory=/opt/shipment \
@@ -35,8 +35,8 @@ test invalid.
 Verify on `sles-api`:
 
 ```bash
-systemctl show zava-loadgen-24.service --property ActiveState,SubState
-journalctl -u zava-loadgen-24.service --since -2min --no-pager
+systemctl show caldova-loadgen-24.service --property ActiveState,SubState
+journalctl -u caldova-loadgen-24.service --since -2min --no-pager
 pgrep -af '[l]oadgen.py'
 ```
 
@@ -45,8 +45,8 @@ pgrep -af '[l]oadgen.py'
 Run on `sles-api`:
 
 ```bash
-sudo systemctl stop zava-loadgen-24.service
-test "$(systemctl is-active zava-loadgen-24.service || true)" = inactive
+sudo systemctl stop caldova-loadgen-24.service
+test "$(systemctl is-active caldova-loadgen-24.service || true)" = inactive
 ! pgrep -af '[l]oadgen.py'
 ```
 
