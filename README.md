@@ -33,13 +33,14 @@ address the browser actually used, so the board is always truthful.
 | Stage | Dashboard | Tracking page | API |
 |---|---|---|---|
 | Hyper-V (now) | `http://192.168.90.13/` | `http://192.168.90.13/track` | `http://192.168.90.12:8080` |
-| Azure (after cutover) | `https://dash.99b.org` | `https://track.99b.org` | `https://api.99b.org` |
+| Azure (after cutover) | `https://dash.example.com` | `https://track.example.com` | `https://api.example.com` |
 
-Switching to the `99b.org` names is a **one-line change** in
+The Azure hostnames above are examples; configure DNS for your own domain.
+Switching to your configured tracking hostname is a **one-line change** in
 `/etc/shipment/shipment.env` on the web tier:
 
 ```ini
-SHIPMENT_TRACK_URL=https://track.99b.org
+SHIPMENT_TRACK_URL=https://track.example.com
 ```
 
 Leave it blank until DNS actually resolves. That single line is the last step of
